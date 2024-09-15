@@ -1,7 +1,7 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-@Schema()
+@Schema({ collection: 'Rooms', strict: true })
 export class Room {
   @Prop({ required: true })
   title: string;
@@ -15,17 +15,17 @@ export class Room {
   @Prop({ required: true })
   maxNum: number;
 
-  @Prop()
+  @Prop({ default: 1 })
   currentNum: number;
 
   @Prop({ required: true })
-  public: boolean;
+  isPublic: boolean;
 
   @Prop()
   password?: string;
 
   @Prop({ required: true })
-  chat: boolean;
+  isChat: boolean;
 
   @Prop()
   imageUrl: string;
@@ -35,4 +35,9 @@ export class Room {
 
   @Prop({ type: [Types.ObjectId], ref: 'User' })
   member: Types.ObjectId[];
+
+  @Prop({ type: Date, default: Date.now() })
+  createdAt: Date;
 }
+
+export const RoomSchema = SchemaFactory.createForClass(Room);
