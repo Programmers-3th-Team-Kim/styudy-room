@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseConfigService } from './configs/mongoose.config.service';
 import { User, UserSchema } from './users/users.schema';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { User, UserSchema } from './users/users.schema';
       useClass: MongooseConfigService,
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
