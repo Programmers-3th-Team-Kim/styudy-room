@@ -19,8 +19,6 @@ export class RoomsService {
     return createdRoom.save();
   }
 
-  //new Types.ObjectId('603d6f4e8b3f2a3d54f1b2e9'), //토큰을 통해서 방생성자 저장
-
   async showRoomList(
     search?: string,
     isPublic?: boolean,
@@ -57,16 +55,4 @@ export class RoomsService {
 
     return rooms;
   }
-
-  // findOne(id: number) {
-  //   return `This action returns a #${id} room`;
-  // }
-
-  // update(id: number, updateRoomDto: UpdateRoomDto) {
-  //   return `This action updates a #${id} room`;
-  // }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} room`;
-  // }
 }
