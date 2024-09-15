@@ -9,6 +9,8 @@ export class CreateRoomDto {
 
   isPublic: boolean;
 
+  password?: string;
+
   isChat: boolean;
 
   imageUrl: string;

@@ -1,18 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
-import { UpdateRoomDto } from './dto/update-room.dto';
 import { ShowRoomDto } from './dto/show-room.dto';
-import { plainToClass } from 'class-transformer';
 
 @Controller('rooms')
 export class RoomsController {
@@ -20,7 +9,7 @@ export class RoomsController {
 
   @Post()
   async createRoom(@Body() createRoomDto: CreateRoomDto) {
-    return this.roomsService.createRoom();
+    return this.roomsService.createRoom(createRoomDto);
   }
 
   @Get()
