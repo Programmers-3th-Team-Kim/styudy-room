@@ -35,3 +35,20 @@ export class AuthService {
     });
   }
 
+  async validateUser(id: string, password: string): Promise<User> {
+    const user = await this.usersService.findOne(id);
+    if (user && (await bcrypt.compare(password, user.password))) {
+      const result = user.toObject();
+      delete result.password;
+      return user;
+    }
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  async login(user: User) {
+    const payload = { id: user.id, sub: user._id };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+}
