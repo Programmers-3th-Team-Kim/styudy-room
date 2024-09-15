@@ -49,11 +49,9 @@ export class RoomsService {
     }
 
     if (typeof isPossible !== 'undefined') {
-      if (isPossible) {
-        query['$expr'] = { $gt: ['$maxNum', '$currentNum'] };
-      } else {
-        query['$expr'] = { $eq: ['$maxNum', '$currentNum'] };
-      }
+      query['$expr'] = isPossible
+        ? { $gt: ['$maxNum', '$currentNum'] }
+        : { $eq: ['$maxNum', '$currentNum'] };
     }
 
     const rooms = await this.roomModel
