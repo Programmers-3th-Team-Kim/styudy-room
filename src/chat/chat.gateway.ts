@@ -11,6 +11,7 @@ import { ChatService } from './chat.service';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JoinRoomDto, LeaveRoomDto, SendMessageDto } from './dto/client.dto';
+import mongoose from 'mongoose';
 
 @WebSocketGateway({
   path: '/rooms',
@@ -36,26 +37,41 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinRoom')
-  handleJoinRoom(
+  async handleJoinRoom(
     @MessageBody() joinRoomDto: JoinRoomDto,
     @ConnectedSocket() client: Socket
-  ): void {
+  ): Promise<void> {
     const { roomId, nickname } = joinRoomDto;
-    this.chatService.joinRoom(this.server, client, roomId, nickname);
+    // const userId = client.data.user;
+    const userId = new mongoose.Types.ObjectId('66e185c81947588b7ad94b5e'); //임시 데이터
+    const isChat = await this.chatService.joinRoom(
+      client,
+      roomId,
+      userId,
+      nickname
+    );
+    if (isChat) {
+      this.chatService.joinChat(this.server, client, roomId, nickname);
+    }
   }
 
-  @SubscribeMessage('sendMessage')
+  @SubscribeMessage('sendChat')
   handleMessage(@MessageBody() sendMessageDto: SendMessageDto): void {
     const { roomId, sender, message } = sendMessageDto;
-    this.chatService.sendMessage(this.server, roomId, sender, message);
+    this.chatService.sendChat(this.server, roomId, sender, message);
   }
 
   @SubscribeMessage('leaveRoom')
-  handleLeaveRoom(
+  async handleLeaveRoom(
     @MessageBody() leaveRoomDto: LeaveRoomDto,
     @ConnectedSocket() client: Socket
-  ): void {
+  ): Promise<void> {
     const { roomId, nickname } = leaveRoomDto;
-    this.chatService.leaveRoom(this.server, client, roomId, nickname);
+    // const userId = client.data.user;
+    const userId = new mongoose.Types.ObjectId('66e185c81947588b7ad94b5e'); //임시 데이터
+    const isChat = await this.chatService.leaveRoom(client, roomId, userId);
+    if (isChat) {
+      this.chatService.leaveChat(this.server, client, roomId, nickname);
+    }
   }
 }

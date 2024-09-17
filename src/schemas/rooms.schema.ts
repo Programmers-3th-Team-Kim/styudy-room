@@ -22,7 +22,7 @@ export class Room {
   isPublic: boolean;
 
   @Prop()
-  password?: string;
+  password: string;
 
   @Prop({ required: true })
   isChat: boolean;
@@ -34,7 +34,7 @@ export class Room {
   roomManager: Types.ObjectId;
 
   @Prop({ type: [Types.ObjectId], ref: 'User' })
-  member: Types.ObjectId[];
+  currentMember: Types.ObjectId[];
 
   @Prop({ type: Date, default: Date.now() })
   createdAt: Date;
