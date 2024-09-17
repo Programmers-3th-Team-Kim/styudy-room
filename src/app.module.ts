@@ -4,9 +4,9 @@ import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseConfigService } from './configs/mongoose.config.service';
-import { User, UserSchema } from './schemas/users.schema';
-import { ChatModule } from './chat/chat.module';
+import { User, UserSchema } from './users/users.schema';
 import { RoomsModule } from './rooms/rooms.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [

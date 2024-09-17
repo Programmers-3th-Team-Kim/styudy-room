@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Room, RoomSchema } from 'src/schemas/rooms.schema';
-import { User, UserSchema } from 'src/schemas/users.schema';
-import { Planner, PlannerSchema } from 'src/schemas/planners.schema';
+import { Planner, PlannerSchema } from 'src/planners/planners.schema';
+import { Room, RoomSchema } from 'src/rooms/rooms.schema';
+import { User, UserSchema } from 'src/users/users.schema';
 
 @Module({
   imports: [

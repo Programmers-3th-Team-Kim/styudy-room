@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatDto, NoticeDto } from './dto/server.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from 'src/schemas/users.schema';
 import mongoose, { Model } from 'mongoose';
-import { Room } from 'src/schemas/rooms.schema';
-import { Planner } from 'src/schemas/planners.schema';
+import { Planner } from 'src/planners/planners.schema';
+import { User } from 'src/users/users.schema';
+import { Room } from 'src/rooms/rooms.schema';
 
 @Injectable()
 export class ChatService {
