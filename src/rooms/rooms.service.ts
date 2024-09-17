@@ -2,19 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { Room } from 'src/rooms/rooms.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
+import { ShowRoomDto } from './dto/showRoom.dto';
 
 @Injectable()
 export class RoomsService {
   constructor(@InjectModel(Room.name) private roomModel: Model<Room>) {}
 
-  async showRoomList(
-    search?: string,
-    isPublic?: boolean,
-    isPossible?: boolean,
-    limit?: number,
-    offset?: number
-  ): Promise<Room[]> {
-    console.log(limit, offset);
+  async showRoomList(showRoomDto: ShowRoomDto): Promise<Room[]> {
+    const { search, isPublic, isPossible, offset, limit } = showRoomDto;
     const query: FilterQuery<Room> = {};
 
     if (search) {
