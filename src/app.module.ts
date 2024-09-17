@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseConfigService } from './configs/mongoose.config.service';
-import { User, UserSchema } from './schemas/users.schema';
+import { User, UserSchema } from './users/users.schema';
 import { RoomsModule } from './rooms/rooms.module';
 
 @Module({
