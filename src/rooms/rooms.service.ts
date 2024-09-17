@@ -13,7 +13,7 @@ export class RoomsService {
     isPossible?: boolean,
     limit?: number,
     offset?: number
-  ) {
+  ): Promise<Room[]> {
     console.log(limit, offset);
     const query: FilterQuery<Room> = {};
 
