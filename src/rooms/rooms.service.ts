@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { CreateRoomDto } from './dto/create-room.dto';
-import { Room } from 'src/schemas/rooms.schema';
+import { Room } from 'src/rooms/rooms.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
+import { ShowRoomDto } from './dto/showRoom.dto';
+import { CreateRoomDto } from './dto/createRoom.dto';
 
 @Injectable()
 export class RoomsService {
   constructor(@InjectModel(Room.name) private roomModel: Model<Room>) {}
 
-  async createRoom(createRoomDto: CreateRoomDto) {
+  async createRoom(createRoomDto: CreateRoomDto): Promise<Room> {
     const createdRoom = new this.roomModel({
       ...createRoomDto,
       currentNum: 0,
@@ -19,14 +20,8 @@ export class RoomsService {
     return createdRoom.save();
   }
 
-  async showRoomList(
-    search?: string,
-    isPublic?: boolean,
-    isPossible?: boolean,
-    limit?: number,
-    offset?: number
-  ) {
-    console.log(limit, offset);
+  async showRoomList(showRoomDto: ShowRoomDto): Promise<Room[]> {
+    const { search, isPublic, isPossible, offset, limit } = showRoomDto;
     const query: FilterQuery<Room> = {};
 
     if (search) {

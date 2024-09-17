@@ -1,27 +1,20 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
-import { CreateRoomDto } from './dto/create-room.dto';
-import { ShowRoomDto } from './dto/show-room.dto';
+import { ShowRoomDto } from './dto/showRoom.dto';
+import { Room } from './rooms.schema';
+import { CreateRoomDto } from './dto/createRoom.dto';
 
 @Controller('rooms')
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @Post()
-  async createRoom(@Body() createRoomDto: CreateRoomDto) {
+  async createRoom(@Body() createRoomDto: CreateRoomDto): Promise<Room> {
     return this.roomsService.createRoom(createRoomDto);
   }
 
   @Get()
-  async showRoomList(@Query() query: ShowRoomDto) {
-    const { search, isPublic, isPossible, limit, offset } = query;
-
-    return this.roomsService.showRoomList(
-      search,
-      isPublic,
-      isPossible,
-      limit,
-      offset
-    );
+  async showRoomList(@Query() showRoomDto: ShowRoomDto): Promise<Room[]> {
+    return this.roomsService.showRoomList(showRoomDto);
   }
 }
