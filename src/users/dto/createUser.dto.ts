@@ -14,12 +14,12 @@ export class CreateUserDto {
   @Matches(/^[a-zA-Z0-9]{6,16}$/, {
     message: '아이디는 영어와 숫자로 구성된 6~16글자여야 합니다.',
   })
-  userId: string;
+  id: string;
 
   @IsString()
   @IsNotEmpty({ message: '닉네임을 입력해주세요.' })
-  @MinLength(6, { message: '닉네임은 최소 2자 이상이어야 합니다.' })
-  @MaxLength(16, { message: '닉네임은 최대 8자 이내여야 합니다.' })
+  @MinLength(2, { message: '닉네임은 최소 2자 이상이어야 합니다.' })
+  @MaxLength(8, { message: '닉네임은 최대 8자 이내여야 합니다.' })
   @Matches(/^[a-zA-Z가-힣0-9]{2,8}$/, {
     message: '닉네임은 영어, 한글, 숫자로 구성된 2~8글자여야 합니다.',
   })
