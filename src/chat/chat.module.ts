@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Planner, PlannerSchema } from 'src/planners/planners.schema';
 import { Room, RoomSchema } from 'src/rooms/rooms.schema';
 import { User, UserSchema } from 'src/users/users.schema';
+import { Statistic, StatisticSchema } from 'src/statistics/statistics.schema';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { User, UserSchema } from 'src/users/users.schema';
       { name: Room.name, schema: RoomSchema },
       { name: User.name, schema: UserSchema },
       { name: Planner.name, schema: PlannerSchema },
+      { name: Statistic.name, schema: StatisticSchema },
     ]),
   ],
   providers: [ChatGateway, ChatService],

@@ -6,22 +6,18 @@ import mongoose, { Model } from 'mongoose';
 import { Planner } from 'src/planners/planners.schema';
 import { User } from 'src/users/users.schema';
 import { Room } from 'src/rooms/rooms.schema';
+import { Statistic } from './../statistics/statistics.schema';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Room.name) private roomModel: Model<Room>,
-    @InjectModel(Planner.name) private plannerModel: Model<Planner>
+    @InjectModel(Planner.name) private plannerModel: Model<Planner>,
+    @InjectModel(Statistic.name) private statisticModel: Model<Statistic>
   ) {}
 
-  joinChat(
-    server: Server,
-    client: Socket,
-    roomId: string,
-    nickname: string
-  ): void {
-    client.join(roomId);
+  joinChat(server: Server, roomId: string, nickname: string): void {
     const noticeData: NoticeDto = {
       type: 'notice',
       message: `${nickname}님께서 입장하셨습니다.`,
@@ -29,13 +25,7 @@ export class ChatService {
     server.to(roomId).emit('notice', noticeData);
   }
 
-  leaveChat(
-    server: Server,
-    client: Socket,
-    roomId: string,
-    nickname: string
-  ): void {
-    client.leave(roomId);
+  leaveChat(server: Server, roomId: string, nickname: string): void {
     const noticeData: NoticeDto = {
       type: 'notice',
       message: `${nickname}님께서 퇴장하셨습니다.`,
@@ -49,6 +39,7 @@ export class ChatService {
     userId: mongoose.Types.ObjectId,
     nickname: string
   ) {
+    client.join(roomId);
     const roomData = await this.roomModel.findById(
       new mongoose.Types.ObjectId(roomId)
     );
@@ -80,7 +71,7 @@ export class ChatService {
         userId,
         date: { $gte: yesterday, $lte: tomorrow },
       },
-      { _id: false, todo: true, isComplete: true, date: true }
+      { _id: true, todo: true, isComplete: true, date: true, afterTime: true }
     );
     // console.log(plannerData);
 
@@ -101,16 +92,25 @@ export class ChatService {
   async leaveRoom(
     client: Socket,
     roomId: string,
-    userId: mongoose.Types.ObjectId
+    userId: mongoose.Types.ObjectId,
+    planner: any
   ) {
+    client.leave(roomId);
+
     const roomData = await this.roomModel.findById(
       new mongoose.Types.ObjectId(roomId)
     );
     roomData.currentMember.filter((value) => value !== userId);
     roomData.currentNum -= 1;
-
     const { _id, currentMember, currentNum, isChat } = roomData;
     await this.roomModel.updateOne({ _id }, { currentMember, currentNum });
+
+    planner.forEach(async (value: any) => {
+      const { _id, plannerData } = value;
+      await this.roomModel.updateOne({ _id }, { plannerData });
+    });
+
+    // 시간업데이트
 
     return isChat;
   }
@@ -132,5 +132,43 @@ export class ChatService {
       sender,
     };
     server.to(roomId).emit('message', chatData);
+  }
+
+  async startTimer(
+    client: Socket,
+    roomId: string,
+    totalTime: number,
+    maxTime: number,
+    subjectTime: any,
+    userId: mongoose.Types.ObjectId
+  ) {
+    const { _id, afterTime } = subjectTime;
+
+    await this.plannerModel.updateOne({ _id }, { afterTime });
+    const date = new Date().toLocaleDateString('en-CA');
+    await this.statisticModel.updateOne(
+      { userId, date },
+      { total: totalTime, max: maxTime },
+      { upsert: true }
+    );
+
+    client.broadcast
+      .to(roomId)
+      .emit('shareTimer', { state: 'start', totalTime });
+  }
+
+  async stopTimer(
+    client: Socket,
+    roomId: string,
+    restTime: number,
+    totalTime: number,
+    userId: mongoose.Types.ObjectId
+  ) {
+    const date = new Date().toLocaleDateString('en-CA');
+    await this.statisticModel.updateOne({ userId, date }, { rest: restTime });
+
+    client.broadcast
+      .to(roomId)
+      .emit('shareTimer', { state: 'stop', totalTime });
   }
 }
