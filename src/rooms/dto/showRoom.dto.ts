@@ -1,21 +1,42 @@
 import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class ShowRoomDto {
-  search?: string | undefined;
+  @IsOptional()
+  @IsString({ message: '검색어는 문자열이어야 합니다.' })
+  search: string;
 
+  @IsOptional()
+  @IsBoolean({ message: '공개 여부는 true 또는 false 값이어야 합니다.' })
   @Transform(({ value }) =>
     value === 'true' ? true : value === 'false' ? false : undefined
   )
-  isPublic?: boolean | undefined;
+  isPublic: boolean;
 
+  @IsOptional()
+  @IsBoolean({
+    message: '참여 가능한 방 여부는 true 또는 false 값이어야 합니다.',
+  })
   @Transform(({ value }) =>
     value === 'true' ? true : value === 'false' ? false : undefined
   )
-  isPossible?: boolean | undefined;
+  isPossible: boolean;
 
+  @IsOptional()
   @Type(() => Number)
-  limit?: number = 9;
+  @IsNumber({}, { message: 'limit은 숫자여야 합니다.' })
+  @Min(1, { message: 'limit은 최소 1이어야 합니다.' })
+  limit: number = 9;
 
+  @IsOptional()
   @Type(() => Number)
-  offset?: number = 0;
+  @IsNumber({}, { message: 'offset은 숫자여야 합니다.' })
+  @Min(0, { message: 'offset은 최소 0이어야 합니다.' })
+  offset: number = 0;
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Room } from 'src/rooms/rooms.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import { ShowRoomDto } from './dto/showRoom.dto';
 import { CreateRoomDto } from './dto/createRoom.dto';
 
@@ -12,15 +12,14 @@ export class RoomsService {
   async createRoom(
     createRoomDto: CreateRoomDto,
     userId: string
-  ): Promise<Room> {
+  ): Promise<void> {
     const createdRoom = new this.roomModel({
       ...createRoomDto,
       currentNum: 0,
-      roomManager: 'jwt 토큰을 이용한 생성자 정보 저장',
-      //new Types.ObjectId('603d6f4e8b3f2a3d54f1b2e9'), //토큰을 통해서 방생성자 저장
+      roomManager: new Types.ObjectId(userId),
       member: [],
     });
-    return createdRoom.save();
+    createdRoom.save();
   }
 
   async showRoomList(showRoomDto: ShowRoomDto): Promise<Room[]> {
@@ -45,7 +44,17 @@ export class RoomsService {
     }
 
     const rooms = await this.roomModel
-      .find(query)
+      .find(query, {
+        _id: true,
+        title: true,
+        tagList: true,
+        notice: true,
+        maxNum: true,
+        currentNum: true,
+        isPublic: true,
+        imageUrl: true,
+        createdAt: true,
+      })
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit)
