@@ -9,7 +9,10 @@ import { CreateRoomDto } from './dto/createRoom.dto';
 export class RoomsService {
   constructor(@InjectModel(Room.name) private roomModel: Model<Room>) {}
 
-  async createRoom(createRoomDto: CreateRoomDto): Promise<Room> {
+  async createRoom(
+    createRoomDto: CreateRoomDto,
+    userId: string
+  ): Promise<Room> {
     const createdRoom = new this.roomModel({
       ...createRoomDto,
       currentNum: 0,
