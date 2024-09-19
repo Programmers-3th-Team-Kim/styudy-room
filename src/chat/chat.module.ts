@@ -6,6 +6,7 @@ import { Planner, PlannerSchema } from 'src/planners/planners.schema';
 import { Room, RoomSchema } from 'src/rooms/rooms.schema';
 import { User, UserSchema } from 'src/users/users.schema';
 import { Statistic, StatisticSchema } from 'src/statistics/statistics.schema';
+// import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { Statistic, StatisticSchema } from 'src/statistics/statistics.schema';
       { name: Planner.name, schema: PlannerSchema },
       { name: Statistic.name, schema: StatisticSchema },
     ]),
+    // SocketJwtAuthService,
   ],
   providers: [ChatGateway, ChatService],
 })

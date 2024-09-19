@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JoinRoomDto, LeaveRoomDto, SendMessageDto } from './dto/client.dto';
 import mongoose from 'mongoose';
+import { SocketJwtAuthService } from '../auth/socketJwtAuth.service';
 
 @WebSocketGateway({
   path: '/rooms',
@@ -24,12 +25,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly socketJwtAuthService: SocketJwtAuthService
+  ) {}
 
   private logger = new Logger('ChatGateWay');
 
-  handleConnection(socket: Socket): void {
-    this.logger.log(`Socket connected: ${socket.id}`);
+  async handleConnection(socket: Socket) {
+    const isValid = await this.socketJwtAuthService.validateSocket(socket);
+    if (!isValid) {
+      socket.disconnect();
+    } else {
+      console.log(`Client connected: ${socket.id}`);
+    }
   }
 
   handleDisconnect(socket: Socket): void {
@@ -75,12 +84,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         },
       ],
     };
+    const statistic = {
+      total: 1111,
+      max: 2222,
+      break: 3333,
+      morning: 4444,
+      afternoon: 5555,
+      evening: 6666,
+      night: 7777,
+    };
     const userId = new mongoose.Types.ObjectId('66e185c81947588b7ad94b5e'); //임시 데이터
     const isChat = await this.chatService.leaveRoom(
       client,
       roomId,
       userId,
-      planner
+      planner,
+      statistic
     );
     if (isChat) {
       this.chatService.leaveChat(this.server, roomId, nickname);

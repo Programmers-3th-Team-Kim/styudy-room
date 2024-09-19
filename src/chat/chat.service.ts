@@ -40,6 +40,7 @@ export class ChatService {
     nickname: string
   ) {
     client.join(roomId);
+
     const roomData = await this.roomModel.findById(
       new mongoose.Types.ObjectId(roomId)
     );
@@ -73,7 +74,6 @@ export class ChatService {
       },
       { _id: true, todo: true, isComplete: true, date: true, afterTime: true }
     );
-    // console.log(plannerData);
 
     const resultsData: any = {
       title,
@@ -93,7 +93,8 @@ export class ChatService {
     client: Socket,
     roomId: string,
     userId: mongoose.Types.ObjectId,
-    planner: any
+    planner: any,
+    statistic: any
   ) {
     client.leave(roomId);
 
@@ -107,10 +108,11 @@ export class ChatService {
 
     planner.forEach(async (value: any) => {
       const { _id, plannerData } = value;
-      await this.roomModel.updateOne({ _id }, { plannerData });
+      await this.plannerModel.updateOne({ _id }, { plannerData });
     });
 
-    // 시간업데이트
+    const date = new Date().toLocaleDateString('en-CA');
+    await this.statisticModel.updateOne({ userId, date }, { statistic });
 
     return isChat;
   }
@@ -160,15 +162,13 @@ export class ChatService {
   async stopTimer(
     client: Socket,
     roomId: string,
-    restTime: number,
-    totalTime: number,
+    rest: number,
+    total: number,
     userId: mongoose.Types.ObjectId
   ) {
     const date = new Date().toLocaleDateString('en-CA');
-    await this.statisticModel.updateOne({ userId, date }, { rest: restTime });
+    await this.statisticModel.updateOne({ userId, date }, { rest });
 
-    client.broadcast
-      .to(roomId)
-      .emit('shareTimer', { state: 'stop', totalTime });
+    client.broadcast.to(roomId).emit('shareTimer', { state: 'stop', total });
   }
 }

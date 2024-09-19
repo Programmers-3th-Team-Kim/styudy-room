@@ -14,7 +14,6 @@ export class RoomsService {
       ...createRoomDto,
       currentNum: 0,
       roomManager: 'jwt 토큰을 이용한 생성자 정보 저장',
-      //new Types.ObjectId('603d6f4e8b3f2a3d54f1b2e9'), //토큰을 통해서 방생성자 저장
       member: [],
     });
     return createdRoom.save();
