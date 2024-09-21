@@ -22,7 +22,7 @@ export class Room {
   isPublic: boolean;
 
   @Prop()
-  password?: string;
+  password: string;
 
   @Prop({ required: true })
   isChat: boolean;

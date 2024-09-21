@@ -7,6 +7,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateRoomDto {
@@ -17,7 +18,7 @@ export class CreateRoomDto {
 
   @IsOptional()
   @IsString({ each: true, message: '태그는 문자열 배열이어야 합니다.' })
-  tagList: string[];
+  tagList: string[] = [];
 
   @IsNotEmpty({ message: '최대 인원 수는 필수입니다.' })
   @IsNumber({}, { message: '최대 인원 수는 숫자여야 합니다.' })
@@ -27,15 +28,18 @@ export class CreateRoomDto {
 
   @IsOptional()
   @IsString({ message: '공지사항은 문자열이어야 합니다.' })
-  notice: string;
+  notice: string = '';
 
   @IsNotEmpty({ message: '공개 여부는 필수입니다.' })
   @IsBoolean({ message: '공개 여부는 true 또는 false 값이어야 합니다.' })
   isPublic: boolean;
 
-  @IsOptional()
+  @ValidateIf((o) => o.isPublic === false)
+  @IsNotEmpty({
+    message: '비밀번호는 공개 여부가 false일 때 반드시 입력되어야 합니다.',
+  })
   @IsString({ message: '비밀번호는 문자열이어야 합니다.' })
-  password: string;
+  password: string = '';
 
   @IsNotEmpty({ message: '채팅 여부는 필수입니다.' })
   @IsBoolean({ message: '채팅 여부는 true 또는 false 값이어야 합니다.' })
@@ -43,5 +47,5 @@ export class CreateRoomDto {
 
   @IsOptional()
   @IsString({ message: '이미지 URL은 문자열이어야 합니다.' })
-  imageUrl: string;
+  imageUrl: string = '';
 }
