@@ -7,6 +7,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateIf,
 } from 'class-validator';
 
@@ -39,6 +40,7 @@ export class CreateRoomDto {
     message: '비밀번호는 공개 여부가 false일 때 반드시 입력되어야 합니다.',
   })
   @IsString({ message: '비밀번호는 문자열이어야 합니다.' })
+  @MinLength(1, { message: '비밀번호는 최소 1자 이상이어야 합니다.' })
   password: string = '';
 
   @IsNotEmpty({ message: '채팅 여부는 필수입니다.' })

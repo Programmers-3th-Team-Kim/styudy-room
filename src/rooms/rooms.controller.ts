@@ -22,8 +22,8 @@ export class RoomsController {
   async createRoom(
     @Body() createRoomDto: CreateRoomDto,
     @Req() req: any
-  ): Promise<void> {
-    this.roomsService.createRoom(createRoomDto, req.user.userId);
+  ): Promise<Room> {
+    return this.roomsService.createRoom(createRoomDto, req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'))

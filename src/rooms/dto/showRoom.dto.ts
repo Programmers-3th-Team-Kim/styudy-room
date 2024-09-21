@@ -14,18 +14,22 @@ export class ShowRoomDto {
 
   @IsOptional()
   @IsBoolean({ message: '공개 여부는 true 또는 false 값이어야 합니다.' })
-  @Transform(({ value }) =>
-    value === 'true' ? true : value === 'false' ? false : undefined
-  )
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
+  })
   isPublic: boolean;
 
   @IsOptional()
   @IsBoolean({
     message: '참여 가능한 방 여부는 true 또는 false 값이어야 합니다.',
   })
-  @Transform(({ value }) =>
-    value === 'true' ? true : value === 'false' ? false : undefined
-  )
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
+  })
   isPossible: boolean;
 
   @IsOptional()

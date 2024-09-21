@@ -12,14 +12,14 @@ export class RoomsService {
   async createRoom(
     createRoomDto: CreateRoomDto,
     userId: string
-  ): Promise<void> {
+  ): Promise<Room> {
     const createdRoom = new this.roomModel({
       ...createRoomDto,
       currentNum: 0,
       roomManager: new Types.ObjectId(userId),
       member: [],
     });
-    createdRoom.save();
+    return createdRoom.save();
   }
 
   async showRoomList(showRoomDto: ShowRoomDto): Promise<Room[]> {
