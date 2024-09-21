@@ -1,40 +1,40 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-@Schema({ collection: 'Rooms', strict: true })
+@Schema({ collection: 'Rooms', strict: 'throw', minimize: false })
 export class Room {
   @Prop({ required: true })
   title: string;
 
-  @Prop()
+  @Prop({ default: [] })
   tagList: string[];
 
-  @Prop()
+  @Prop({ default: '' })
   notice: string;
 
   @Prop({ required: true })
   maxNum: number;
 
-  @Prop({ default: 1 })
+  @Prop({ default: 0 })
   currentNum: number;
 
   @Prop({ required: true })
   isPublic: boolean;
 
-  @Prop()
+  @Prop({ default: '' })
   password: string;
 
   @Prop({ required: true })
   isChat: boolean;
 
-  @Prop()
+  @Prop({ default: '' })
   imageUrl: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   roomManager: Types.ObjectId;
 
-  @Prop({ type: [Types.ObjectId], ref: 'User' })
-  member: Types.ObjectId[];
+  @Prop({ type: [Types.ObjectId], default: [], ref: 'User' })
+  currentMember: Types.ObjectId[];
 
   @Prop({ type: Date, default: Date.now() })
   createdAt: Date;

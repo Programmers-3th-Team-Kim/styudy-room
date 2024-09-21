@@ -15,9 +15,7 @@ export class RoomsService {
   ): Promise<Room> {
     const createdRoom = new this.roomModel({
       ...createRoomDto,
-      currentNum: 0,
       roomManager: new Types.ObjectId(userId),
-      member: [],
     });
     return createdRoom.save();
   }
