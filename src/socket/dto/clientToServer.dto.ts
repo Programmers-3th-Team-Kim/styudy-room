@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 import { StartEndTime } from 'src/planners/planners.schema';
 
 export class JoinRoomDto {
-  roomId: string;
   nickname: string;
 }
 
@@ -16,7 +15,6 @@ export type StartStopState = 'start' | 'stop';
 
 export class ResponseUserInfoDTO extends UserStateDto {
   socketId: string;
-  roomId: string;
 }
 
 export class StatisticDto {
@@ -24,7 +22,7 @@ export class StatisticDto {
   date: string;
   total: number;
   max: number;
-  break: number;
+  rest: number;
   morning: number;
   afternoon: number;
   evening: number;
@@ -42,7 +40,6 @@ export class PlannerDto {
 export class LeaveRoomDto {
   statistic: StatisticDto;
   planner: PlannerDto[];
-  roomId: string;
   nickname: string;
   isChat: boolean;
 }
@@ -50,7 +47,6 @@ export class LeaveRoomDto {
 export class SendChatDto {
   nickname: string;
   message: string;
-  roomId: string;
 }
 
 export class StartTimerDto extends UserStateDto {

@@ -25,7 +25,6 @@ export class SocketService {
 
   joinChat(server: Server, roomId: string, nickname: string): void {
     const noticeData = {
-      type: 'notice',
       message: `${nickname}님께서 입장하셨습니다.`,
     };
     server.to(roomId).emit('notice', noticeData);
@@ -33,7 +32,6 @@ export class SocketService {
 
   leaveChat(server: Server, roomId: string, nickname: string): void {
     const noticeData = {
-      type: 'notice',
       message: `${nickname}님께서 퇴장하셨습니다.`,
     };
     server.to(roomId).emit('notice', noticeData);
@@ -96,7 +94,7 @@ export class SocketService {
       planner,
     };
 
-    client.to(roomId).emit('RoomInfo', roomInfo);
+    client.to(roomId).emit('roomInfo', roomInfo);
     client.broadcast
       .to(roomId)
       .emit('updateMember', { nickname, state: 'join' });

@@ -108,7 +108,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { nickname, message } = payload;
     const roomId = this.socketService.getRoomId(client);
     const chatData = {
-      type: 'chat',
       time: new Date().toLocaleTimeString('ko-KR', {
         hour: '2-digit',
         minute: '2-digit',
