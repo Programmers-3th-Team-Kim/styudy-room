@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Planner, PlannerDocument } from './planners.schema';
@@ -26,10 +26,9 @@ export class PlannersService {
       if (repeatDays) {
         for (const day of repeatDays) {
           for (let i: number = 0; i < repeatWeeks; i++) {
-            console.log(i);
             const selectedDay = this.mappingDays[day];
             const today = new Date().getDay();
-            console.log(`오늘은 ${today} , 선택된 데이터는 ${selectedDay}`);
+
             if (
               today != selectedDay &&
               (selectedDay == 0 || today < selectedDay)
@@ -65,18 +64,16 @@ export class PlannersService {
 
   private async createPlanCascade(
     parentId: Types.ObjectId,
-    planDate: string,
+    plannerDate: string,
     plannerDto: Partial<Planner>
   ): Promise<Planner> {
     const newChildPlanQuery = new this.plannerModel({
       ...plannerDto,
-      date: planDate,
+      date: plannerDate,
       userId: new Types.ObjectId(plannerDto.userId),
       parentObjectId: new Types.ObjectId(parentId),
     });
 
-    // console.log(planDate);
-    // console.log(await newChildPlanQuery.save());
     return await newChildPlanQuery.save();
   }
 
@@ -117,26 +114,52 @@ export class PlannersService {
     return planners;
   }
 
-  // async findOne(id: string): Promise<Planner> {
-  //   return this.plannerModel.findById(id).exec();
+  // async findOne(plannerId: Types.ObjectId): Promise<Planner> {
+  //   return this.plannerModel.findById(plannerId).exec();
   // }
 
   async updatePlan(
-    plannerId: string,
+    plannerId: Types.ObjectId,
     plannerDto: Partial<Planner>
   ): Promise<Planner> {
     const updatePlanQuery = await this.plannerModel
-      .findByIdAndUpdate(new Types.ObjectId(plannerId), plannerDto, {
+      .findByIdAndUpdate(plannerId, plannerDto, {
         new: true,
       })
       .exec();
+
     return updatePlanQuery;
   }
 
-  async deletePlan(plannerId: string): Promise<Planner> {
+  private async selectPlan(
+    parentId: Types.ObjectId,
+    plannerDto: Partial<Planner>
+  ): Promise<Planner> {
+    const updateCascadePlanQuery = await this.plannerModel
+      .findByIdAndUpdate(parentId, plannerDto, {
+        new: true,
+      })
+      .exec();
+
+    return updateCascadePlanQuery;
+  }
+
+  async deletePlan(plannerId: Types.ObjectId): Promise<Planner> {
     const deletePlanQuery = await this.plannerModel
       .findByIdAndDelete(new Types.ObjectId(plannerId))
       .exec();
+
     return deletePlanQuery;
+  }
+
+  async toggleIsComplete(plannerId: Types.ObjectId): Promise<Planner> {
+    const planner = await this.plannerModel.findById(plannerId);
+    if (!planner) {
+      throw new NotFoundException(`${plannerId} is not found`);
+    }
+
+    planner.isComplete = !planner.isComplete;
+
+    return await planner.save();
   }
 }

@@ -7,10 +7,12 @@ import {
   Put,
   Delete,
   Query,
+  Patch,
 } from '@nestjs/common';
 import { PlannersService } from './planners.service';
 import { Planner } from './planners.schema';
 import { PlannerDto } from './dto/planner.dto';
+import { Types } from 'mongoose';
 
 @Controller('planners')
 export class PlannersController {
@@ -33,14 +35,23 @@ export class PlannersController {
 
   @Put(':plannerId')
   async update(
-    @Param('plannerId') plannerId: string,
+    @Param('plannerId') plannerId: Types.ObjectId,
     @Body() updatePlannerDto: PlannerDto
   ): Promise<Planner> {
     return this.plannersService.updatePlan(plannerId, updatePlannerDto);
   }
 
   @Delete(':plannerId')
-  async delete(@Param('plannerId') plannerId: string): Promise<Planner> {
+  async delete(
+    @Param('plannerId') plannerId: Types.ObjectId
+  ): Promise<Planner> {
     return this.plannersService.deletePlan(plannerId);
+  }
+
+  @Patch('completed/:plannerId')
+  async toggle(
+    @Param('plannerId') plannerId: Types.ObjectId
+  ): Promise<Planner> {
+    return this.plannersService.toggleIsComplete(plannerId);
   }
 }
