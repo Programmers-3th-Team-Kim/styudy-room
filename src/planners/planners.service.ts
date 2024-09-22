@@ -114,24 +114,34 @@ export class PlannersService {
     return planners;
   }
 
-  // async findOne(plannerId: Types.ObjectId): Promise<Planner> {
-  //   return this.plannerModel.findById(plannerId).exec();
-  // }
-
   async updatePlan(
     plannerId: Types.ObjectId,
     plannerDto: Partial<Planner>
   ): Promise<Planner> {
+    const { date, parentObjectId, userId, ...updatePlannerDto } = plannerDto;
+
+    if (plannerDto.parentObjectId) {
+      plannerId = plannerDto.parentObjectId;
+    }
+
     const updatePlanQuery = await this.plannerModel
-      .findByIdAndUpdate(plannerId, plannerDto, {
+      .findByIdAndUpdate(plannerId, updatePlannerDto, {
         new: true,
       })
       .exec();
 
+    const childPlannerId = await this.findAll(plannerId);
+
+    if (childPlannerId) {
+      for (const id of childPlannerId) {
+        await this.updatePlanCascade(id, updatePlannerDto);
+      }
+    }
+
     return updatePlanQuery;
   }
 
-  private async selectPlan(
+  private async updatePlanCascade(
     parentId: Types.ObjectId,
     plannerDto: Partial<Planner>
   ): Promise<Planner> {
@@ -142,6 +152,14 @@ export class PlannersService {
       .exec();
 
     return updateCascadePlanQuery;
+  }
+
+  private async findAll(parentId: Types.ObjectId): Promise<any[]> {
+    const findAllQuery = await this.plannerModel
+      .find({ parentObjectId: new Types.ObjectId(parentId) })
+      .exec();
+
+    return findAllQuery.map((planner) => planner._id as Types.ObjectId);
   }
 
   async deletePlan(plannerId: Types.ObjectId): Promise<Planner> {

@@ -28,11 +28,6 @@ export class PlannersController {
     return this.plannersService.showAll(date);
   }
 
-  // @Get(':id')
-  // async findOne(@Param('id') id: string): Promise<Planner> {
-  //   return this.plannersService.findOne(id);
-  // }
-
   @Put(':plannerId')
   async update(
     @Param('plannerId') plannerId: Types.ObjectId,
