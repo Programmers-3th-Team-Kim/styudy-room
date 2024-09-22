@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ChatService } from './chat.service';
-import { ChatGateway } from './chat.gateway';
+import { SocketService } from './socket.service';
+import { SocketGateway } from './socket.gateway';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Planner, PlannerSchema } from 'src/planners/planners.schema';
 import { Room, RoomSchema } from 'src/rooms/rooms.schema';
 import { User, UserSchema } from 'src/users/users.schema';
+import { Planner, PlannerSchema } from 'src/planners/planners.schema';
 import { Statistic, StatisticSchema } from 'src/statistics/statistics.schema';
-// import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
@@ -16,8 +16,8 @@ import { Statistic, StatisticSchema } from 'src/statistics/statistics.schema';
       { name: Planner.name, schema: PlannerSchema },
       { name: Statistic.name, schema: StatisticSchema },
     ]),
-    // SocketJwtAuthService,
+    AuthModule,
   ],
-  providers: [ChatGateway, ChatService],
+  providers: [SocketGateway, SocketService],
 })
-export class ChatModule {}
+export class SocketModule {}

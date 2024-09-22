@@ -6,22 +6,31 @@ class StartEndTime {
   EndTime: string;
 }
 
-@Schema({ collection: 'Planners', strict: true })
+@Schema({ collection: 'Planners', strict: 'throw', minimize: false })
 export class Planner {
-  @Prop()
+  @Prop({ default: '' })
   subject: string;
 
   @Prop({ required: true })
   todo: string;
 
-  @Prop()
-  beforeTime: StartEndTime;
+  @Prop({ default: '' })
+  startTime: string;
 
-  @Prop()
-  afterTime: StartEndTime;
+  @Prop({ default: '' })
+  endTime: string;
 
-  @Prop()
-  repeat: string;
+  @Prop({ default: [] })
+  timeLineList: StartEndTime[];
+
+  @Prop({ default: [] })
+  repeatDays: string[];
+
+  @Prop({ default: 0 })
+  repeatWeeks: number;
+
+  @Prop({ type: Types.ObjectId, default: null })
+  parentObjectId: Types.ObjectId;
 
   @Prop({ default: false })
   isComplete: boolean;
@@ -29,7 +38,7 @@ export class Planner {
   @Prop({ required: true })
   date: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   userId: Types.ObjectId;
 }
 

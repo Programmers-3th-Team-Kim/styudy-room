@@ -1,30 +1,30 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-@Schema({ collection: 'Planners', strict: true })
+@Schema({ collection: 'Planners', strict: 'throw', minimize: false })
 export class Statistic {
   @Prop({ required: true })
   date: string;
 
-  @Prop()
+  @Prop({ default: 0 })
   total: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   max: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   rest: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   mornning: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   afternoon: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   evening: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   night: number;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })

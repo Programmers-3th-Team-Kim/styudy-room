@@ -6,7 +6,8 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseConfigService } from './configs/mongoose.config.service';
 import { User, UserSchema } from './users/users.schema';
 import { RoomsModule } from './rooms/rooms.module';
-import { ChatModule } from './chat/chat.module';
+import { AuthModule } from './auth/auth.module';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -19,8 +20,9 @@ import { ChatModule } from './chat/chat.module';
       useClass: MongooseConfigService,
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-    ChatModule,
     RoomsModule,
+    AuthModule,
+    SocketModule,
   ],
   controllers: [AppController],
   providers: [AppService],
