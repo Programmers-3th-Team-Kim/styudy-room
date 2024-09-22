@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Socket } from 'socket.io';
 
@@ -10,19 +10,20 @@ export class SocketJwtAuthService {
     const token = socket.handshake.auth?.token;
 
     if (!token || !token.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing or invalid token');
+      socket.emit('error', { message: 'Missing or invalid token' }); // 여기서 오류를 클라이언트로 전송
+      return false; // 연결을 종료하지 않고 오류를 보냄
     }
 
     const jwtToken = token.split(' ')[1];
 
     try {
       const payload = this.jwtService.verify(jwtToken);
-      // 토큰 유효성 확인 후 필요한 로직 수행
-      socket.data.user = payload; // 예: 유저 데이터를 소켓에 저장
+      socket.data.user = payload;
       return true;
     } catch (error) {
       console.log(error);
-      throw new UnauthorizedException('Invalid token');
+      socket.emit('error', { message: 'Invalid token' });
+      return false;
     }
   }
 }

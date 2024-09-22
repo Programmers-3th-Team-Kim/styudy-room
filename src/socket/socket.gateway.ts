@@ -13,11 +13,19 @@ import { Socket, Server } from 'socket.io';
 import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
 import { UseFilters } from '@nestjs/common';
 import { WebSocketExceptionFilter } from './socketExceptionFilter';
+import {
+  JoinRoomDto,
+  LeaveRoomDto,
+  ResponseUserInfoDTO,
+  SendChatDto,
+  StartTimerDto,
+  StopTimerDto,
+  UpdateDto,
+} from './dto/clientToServer.dto';
 
 @WebSocketGateway({
-  path: '/rooms',
-  namespace: '/studyRoom',
-  // port: 5173,
+  // path: '/rooms',
+  namespace: '/rooms',
   transports: ['websocket'],
   cors: { origin: '*' },
 })
@@ -45,10 +53,11 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('joinRoom')
   async joinRoom(
-    @MessageBody() payload: any,
+    @MessageBody() payload: JoinRoomDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { roomId, nickname } = payload;
+    const { nickname } = payload;
+    const roomId = this.socketService.getRoomId(client);
     const isChat = await this.socketService.joinRoom(client, roomId, nickname);
     if (isChat) {
       this.socketService.joinChat(this.server, roomId, nickname);
@@ -56,32 +65,35 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('responseUserInfo')
-  responseuserInfo(@MessageBody() payload: any) {
-    const { socketId, nickname, timer, state, roomId } = payload;
+  responseuserInfo(
+    @MessageBody() payload: ResponseUserInfoDTO,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { socketId, ...userState } = payload;
+    const roomId = this.socketService.getRoomId(client);
     const targetSocket = this.server.sockets.sockets.get(socketId);
 
-    if (targetSocket) {
-      targetSocket
-        .to(roomId)
-        .emit('updateUserState', { nickname, timer, state });
-    } else {
+    if (!targetSocket) {
       console.log('Target socket not found');
       throw new WsException('사용자 상태 전송 실패');
     }
+
+    targetSocket.to(roomId).emit('updateUserState', userState);
   }
 
   @SubscribeMessage('leaveRoom')
   async leaveRoom(
-    @MessageBody() payload: any,
+    @MessageBody() payload: LeaveRoomDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { statisticData, plannerData, roomId, nickname, isChat } = payload;
-    await this.socketService.leaveRoom(
+    const { statistic, planner, nickname } = payload;
+    const roomId = this.socketService.getRoomId(client);
+    const isChat = await this.socketService.leaveRoom(
       client,
       roomId,
       nickname,
-      statisticData,
-      plannerData
+      statistic,
+      planner
     );
     if (isChat) {
       this.socketService.leaveChat(this.server, roomId, nickname);
@@ -89,8 +101,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('sendChat')
-  handleMessage(@MessageBody() payload: any) {
-    const { roomId, sender, message } = payload;
+  handleMessage(
+    @MessageBody() payload: SendChatDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { nickname, message } = payload;
+    const roomId = this.socketService.getRoomId(client);
     const chatData = {
       type: 'chat',
       time: new Date().toLocaleTimeString('ko-KR', {
@@ -98,43 +114,50 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
         minute: '2-digit',
       }),
       message,
-      sender,
+      nickname,
     };
     this.server.to(roomId).emit('chat', chatData);
   }
 
   @SubscribeMessage('startTimer')
-  startTimer(@MessageBody() payload: any, @ConnectedSocket() client: Socket) {
-    const { restTime, roomId, nickname, state, timer } = payload;
-    this.socketService.startTimer(
-      client,
-      restTime,
-      roomId,
-      nickname,
-      state,
-      timer
-    );
+  startTimer(
+    @MessageBody() payload: StartTimerDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { restTime, ...userState } = payload;
+    const roomId = this.socketService.getRoomId(client);
+    this.socketService.startTimer(client, restTime, roomId, userState);
   }
 
   @SubscribeMessage('stopTimer')
-  stopTimer(@MessageBody() payload: any, @ConnectedSocket() client: Socket) {
-    const { totalTime, roomId, maxTime, plannerData, nickname, state, timer } =
-      payload;
+  stopTimer(
+    @MessageBody() payload: StopTimerDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { totalTime, maxTime, planner, ...userState } = payload;
+    const roomId = this.socketService.getRoomId(client);
     this.socketService.stopTimer(
       client,
       roomId,
       totalTime,
       maxTime,
-      plannerData,
-      nickname,
-      state,
-      timer
+      planner,
+      userState
     );
   }
 
   @SubscribeMessage('updateData')
-  updateData(@MessageBody() payload: any) {
-    const { totalTime, maxTime, restTime, plannerData } = payload;
-    this.socketService.updateData(totalTime, maxTime, restTime, plannerData);
+  updateData(
+    @MessageBody() payload: UpdateDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { totalTime, maxTime, restTime, planner } = payload;
+    this.socketService.updateData(
+      client,
+      totalTime,
+      maxTime,
+      restTime,
+      planner
+    );
   }
 }

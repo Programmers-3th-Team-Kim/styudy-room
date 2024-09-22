@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-class StartEndTime {
+export class StartEndTime {
   startTime: string;
   EndTime: string;
 }
