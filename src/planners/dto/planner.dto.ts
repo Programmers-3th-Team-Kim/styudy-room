@@ -1,11 +1,9 @@
+import { Types } from 'mongoose';
+
 export class PlannerDto {
-  subject?: string | undefined;
+  subject: string | undefined;
 
   todo: string;
-
-  repeat: string | undefined;
-
-  isComplete: boolean;
 
   date: string;
 
@@ -13,10 +11,18 @@ export class PlannerDto {
 
   endTime: string | undefined;
 
-  userId: string;
+  repeatDays: string[];
 
-  timelines: {
+  repeatWeeks: number;
+
+  parentObjectId?: Types.ObjectId | undefined;
+
+  isComplete: boolean;
+
+  timelineList: {
     startTime: string;
     endTime: string;
   }[];
+
+  userId: Types.ObjectId;
 }

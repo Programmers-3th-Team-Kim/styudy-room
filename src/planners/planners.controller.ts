@@ -6,6 +6,7 @@ import {
   Param,
   Put,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { PlannersService } from './planners.service';
 import { Planner } from './planners.schema';
@@ -17,29 +18,29 @@ export class PlannersController {
 
   @Post()
   async create(@Body() createPlanDto: PlannerDto): Promise<Planner> {
-    return this.plannersService.create(createPlanDto);
+    return this.plannersService.createPlan(createPlanDto);
   }
 
   @Get()
-  async findAll(): Promise<Planner[]> {
-    return this.plannersService.findAll();
+  async findAll(@Query('date') date: string): Promise<Planner[]> {
+    return this.plannersService.showAll(date);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string): Promise<Planner> {
-    return this.plannersService.findOne(id);
-  }
+  // @Get(':id')
+  // async findOne(@Param('id') id: string): Promise<Planner> {
+  //   return this.plannersService.findOne(id);
+  // }
 
-  @Put(':id')
+  @Put(':plannerId')
   async update(
-    @Param('id') id: string,
+    @Param('plannerId') plannerId: string,
     @Body() updatePlannerDto: PlannerDto
   ): Promise<Planner> {
-    return this.plannersService.update(id, updatePlannerDto);
+    return this.plannersService.updatePlan(plannerId, updatePlannerDto);
   }
 
-  @Delete(':id')
-  async delete(@Param('id') id: string): Promise<Planner> {
-    return this.plannersService.delete(id);
+  @Delete(':plannerId')
+  async delete(@Param('plannerId') plannerId: string): Promise<Planner> {
+    return this.plannersService.deletePlan(plannerId);
   }
 }
