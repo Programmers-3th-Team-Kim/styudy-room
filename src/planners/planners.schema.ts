@@ -5,7 +5,7 @@ export type PlannerDocument = Planner & Document;
 
 @Schema({ collection: 'Planners' })
 export class Planner {
-  @Prop()
+  @Prop({ default: '' })
   subject: string;
 
   @Prop({ required: true })
@@ -14,13 +14,13 @@ export class Planner {
   @Prop({ required: true })
   date: string;
 
-  @Prop()
+  @Prop({ default: '' })
   startTime: string;
 
-  @Prop()
+  @Prop({ default: '' })
   endTime: string;
 
-  @Prop()
+  @Prop({ default: [] })
   repeatDays: string[];
 
   @Prop({ default: 1 })
