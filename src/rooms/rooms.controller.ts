@@ -13,7 +13,7 @@ export class RoomsController {
   async createRoom(@Body() createRoomDto: CreateRoomDto): Promise<Room> {
     return this.roomsService.createRoom(createRoomDto);
   }
-
+  
   @UseGuards(AuthGuard('jwt'))
   @Get()
   async showRoomList(@Query() showRoomDto: ShowRoomDto): Promise<Room[]> {
