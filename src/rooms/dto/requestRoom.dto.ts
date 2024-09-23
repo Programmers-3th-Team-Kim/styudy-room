@@ -7,7 +7,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class ShowRoomDto {
+export class RequestRoomDto {
   @IsOptional()
   @IsString({ message: '검색어는 문자열이어야 합니다.' })
   search: string;

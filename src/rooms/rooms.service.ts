@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { Room } from 'src/rooms/rooms.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
-import { ShowRoomDto } from './dto/showRoom.dto';
+import { RequestRoomDto } from './dto/requestRoom.dto';
 import { CreateRoomDto } from './dto/createRoom.dto';
+import { ResponseRoomDto } from './dto/responseRoom.dto';
 
 @Injectable()
 export class RoomsService {
@@ -20,8 +21,10 @@ export class RoomsService {
     return createdRoom.save();
   }
 
-  async showRoomList(showRoomDto: ShowRoomDto): Promise<Room[]> {
-    const { search, isPublic, isPossible, offset, limit } = showRoomDto;
+  async showRoomList(
+    requestRoomDto: RequestRoomDto
+  ): Promise<ResponseRoomDto[]> {
+    const { search, isPublic, isPossible, offset, limit } = requestRoomDto;
     const query: FilterQuery<Room> = {};
 
     if (search) {
@@ -43,21 +46,46 @@ export class RoomsService {
 
     const rooms = await this.roomModel
       .find(query, {
-        _id: true,
-        title: true,
-        tagList: true,
-        notice: true,
-        maxNum: true,
-        currentNum: true,
-        isPublic: true,
-        imageUrl: true,
-        createdAt: true,
+        password: false,
+        isChat: false,
+        roomManager: false,
+        __v: false,
       })
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit)
       .exec();
 
-    return rooms;
+    const roomsData = rooms.map((room) => {
+      const roomObject = room.toObject();
+
+      const {
+        _id,
+        title,
+        tagList,
+        notice,
+        maxNum,
+        isPublic,
+        imageUrl,
+        createdAt,
+        currentMember,
+      } = roomObject;
+
+      const roomDto: ResponseRoomDto = {
+        _id,
+        title,
+        tagList,
+        notice,
+        maxNum,
+        isPublic,
+        imageUrl,
+        createdAt,
+        currentNum: currentMember.length,
+      };
+
+      return roomDto;
+    });
+
+    return roomsData;
   }
 }

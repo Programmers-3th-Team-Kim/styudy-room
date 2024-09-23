@@ -15,9 +15,6 @@ export class Room {
   @Prop({ required: true })
   maxNum: number;
 
-  @Prop({ default: 0 })
-  currentNum: number;
-
   @Prop({ required: true })
   isPublic: boolean;
 
