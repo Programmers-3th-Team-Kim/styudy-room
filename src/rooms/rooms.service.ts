@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Room } from 'src/rooms/rooms.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
@@ -90,11 +94,16 @@ export class RoomsService {
     return roomsData;
   }
 
-  async checkPassword(roomId: string, inputPassword: any): Promise<Message> {
-    const { password } = await this.roomModel.findById(
-      new Types.ObjectId(roomId)
-    );
-    if (inputPassword !== password) {
+  async checkPassword(roomId: string, password: any): Promise<Message> {
+    const room = await this.roomModel
+      .findById(new Types.ObjectId(roomId))
+      .exec();
+
+    if (!room) {
+      throw new NotFoundException('방이 없습니다.');
+    }
+
+    if (room.password !== password) {
       throw new UnauthorizedException('비밀번호가 일치하지 않습니다.');
     }
 
