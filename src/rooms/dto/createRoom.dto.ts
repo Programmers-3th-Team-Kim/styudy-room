@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsBoolean,
   IsNotEmpty,
   IsNumber,
@@ -19,6 +20,11 @@ export class CreateRoomDto {
 
   @IsOptional()
   @IsString({ each: true, message: '태그는 문자열 배열이어야 합니다.' })
+  @ArrayMaxSize(7, { message: '태그는 최대 7개까지만 가능합니다.' })
+  @MaxLength(10, {
+    each: true,
+    message: '태그는 최대 10글자까지 입력 가능합니다.',
+  })
   tagList: string[] = [];
 
   @IsNotEmpty({ message: '최대 인원 수는 필수입니다.' })
