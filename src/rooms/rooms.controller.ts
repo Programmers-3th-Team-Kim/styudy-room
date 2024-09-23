@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Req,
@@ -13,6 +14,8 @@ import { Room } from './rooms.schema';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateRoomDto } from './dto/createRoom.dto';
 import { ResponseRoomDto } from './dto/responseRoom.dto';
+import { CheckRoomPasswordDto } from './dto/checkRoomPassword.dto';
+import { Message } from './dto/message.dto';
 
 @Controller('rooms')
 export class RoomsController {
@@ -32,5 +35,17 @@ export class RoomsController {
     @Query() requestRoomDTO: RequestRoomDto
   ): Promise<ResponseRoomDto[]> {
     return this.roomsService.showRoomList(requestRoomDTO);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('checkPassword/:roomId')
+  async checkRoomPassword(
+    @Param('roomId') roomId: string,
+    @Body() checkRoomPasswordDto: CheckRoomPasswordDto
+  ): Promise<Message> {
+    return await this.roomsService.checkPassword(
+      roomId,
+      checkRoomPasswordDto.password
+    );
   }
 }
