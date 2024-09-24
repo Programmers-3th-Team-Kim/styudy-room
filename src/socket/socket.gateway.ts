@@ -14,7 +14,6 @@ import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
 import { UseFilters } from '@nestjs/common';
 import { WebSocketExceptionFilter } from './socketExceptionFilter';
 import {
-  JoinRoomDto,
   LeaveRoomDto,
   ResponseUserInfoDTO,
   SendChatDto,
@@ -24,7 +23,6 @@ import {
 } from './dto/clientToServer.dto';
 
 @WebSocketGateway({
-  // path: '/rooms',
   namespace: '/rooms',
   transports: ['websocket'],
   cors: { origin: '*' },
@@ -41,9 +39,20 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const isValid = await this.socketJwtAuthService.validateSocket(client);
     if (!isValid) {
-      client.disconnect();
-    } else {
-      console.log(`Client connected: ${client.data.user.sub}`);
+      throw new WsException('jwt token 인증 실패');
+    }
+    console.log(`Client connected: ${client.data.user.sub}`);
+
+    const { roomId, nickname, imageUrl } =
+      this.socketService.getSocketQuery(client);
+    const isChat: boolean = await this.socketService.joinRoom(
+      client,
+      roomId,
+      nickname,
+      imageUrl
+    );
+    if (isChat) {
+      this.socketService.joinChat(this.server, roomId, nickname);
     }
   }
 
@@ -51,34 +60,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`Client disconnected: ${client.data.user.sub}`);
   }
 
-  @SubscribeMessage('joinRoom')
-  async joinRoom(
-    @MessageBody() payload: JoinRoomDto,
-    @ConnectedSocket() client: Socket
-  ) {
-    const { nickname } = payload;
-    const roomId = this.socketService.getRoomId(client);
-    const isChat = await this.socketService.joinRoom(client, roomId, nickname);
-    if (isChat) {
-      this.socketService.joinChat(this.server, roomId, nickname);
-    }
-  }
-
   @SubscribeMessage('responseUserInfo')
-  responseuserInfo(
+  async responseUserInfo(
     @MessageBody() payload: ResponseUserInfoDTO,
     @ConnectedSocket() client: Socket
   ) {
-    const { socketId, ...userState } = payload;
-    const roomId = this.socketService.getRoomId(client);
-    const targetSocket = this.server.sockets.sockets.get(socketId);
-
-    if (!targetSocket) {
-      console.log('Target socket not found');
-      throw new WsException('사용자 상태 전송 실패');
-    }
-
-    targetSocket.to(roomId).emit('updateUserState', userState);
+    this.socketService.responseUserInfo(this.server, client, payload);
   }
 
   @SubscribeMessage('leaveRoom')
@@ -86,14 +73,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: LeaveRoomDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { statistic, planner, nickname } = payload;
-    const roomId = this.socketService.getRoomId(client);
-    const isChat = await this.socketService.leaveRoom(
+    const { roomId, nickname } = this.socketService.getSocketQuery(client);
+    const isChat: boolean = await this.socketService.leaveRoom(
       client,
       roomId,
       nickname,
-      statistic,
-      planner
+      payload
     );
     if (isChat) {
       this.socketService.leaveChat(this.server, roomId, nickname);
@@ -105,17 +90,17 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: SendChatDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { nickname, message } = payload;
-    const roomId = this.socketService.getRoomId(client);
+    const { message } = payload;
+    const { nickname, roomId, imageUrl } =
+      this.socketService.getSocketQuery(client);
     const chatData = {
-      time: new Date().toLocaleTimeString('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+      time: this.socketService.getFormmatedTime(),
       message,
       nickname,
+      imageUrl,
     };
-    this.server.to(roomId).emit('chat', chatData);
+    client.broadcast.to(roomId).emit('receiveChat', chatData);
+    client.to(roomId).emit('responseChat', { success: true });
   }
 
   @SubscribeMessage('startTimer')
@@ -123,9 +108,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: StartTimerDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { restTime, ...userState } = payload;
-    const roomId = this.socketService.getRoomId(client);
-    this.socketService.startTimer(client, restTime, roomId, userState);
+    this.socketService.startTimer(client, payload);
   }
 
   @SubscribeMessage('stopTimer')
@@ -133,16 +116,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: StopTimerDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { totalTime, maxTime, planner, ...userState } = payload;
-    const roomId = this.socketService.getRoomId(client);
-    this.socketService.stopTimer(
-      client,
-      roomId,
-      totalTime,
-      maxTime,
-      planner,
-      userState
-    );
+    this.socketService.stopTimer(client, payload);
   }
 
   @SubscribeMessage('updateData')
@@ -150,13 +124,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: UpdateDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { totalTime, maxTime, restTime, planner } = payload;
-    this.socketService.updateData(
-      client,
-      totalTime,
-      maxTime,
-      restTime,
-      planner
-    );
+    this.socketService.updateData(client, payload);
   }
 }

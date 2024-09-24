@@ -8,11 +8,14 @@ import { Room } from 'src/rooms/rooms.schema';
 import { Statistic } from 'src/statistics/statistics.schema';
 import { User } from 'src/users/users.schema';
 import {
-  PlannerDto,
+  LeaveRoomDto,
+  ResponseUserInfoDTO,
+  StartTimerDto,
   StatisticDto,
-  UserStateDto,
+  StopTimerDto,
+  UpdateDto,
 } from './dto/clientToServer.dto';
-import { RoomInfoDto } from './dto/serverToClient.dto';
+import { AllInfoDto, SocketQueryDto } from './dto/serverToClient.dto';
 
 @Injectable()
 export class SocketService {
@@ -23,16 +26,18 @@ export class SocketService {
     @InjectModel(Statistic.name) private statisticModel: Model<Statistic>
   ) {}
 
-  joinChat(server: Server, roomId: string, nickname: string): void {
+  joinChat(server: Server, roomId: string, nickname: string) {
     const noticeData = {
       message: `${nickname}님께서 입장하셨습니다.`,
+      time: this.getFormmatedTime(),
     };
     server.to(roomId).emit('notice', noticeData);
   }
 
-  leaveChat(server: Server, roomId: string, nickname: string): void {
+  leaveChat(server: Server, roomId: string, nickname: string) {
     const noticeData = {
       message: `${nickname}님께서 퇴장하셨습니다.`,
+      time: this.getFormmatedTime(),
     };
     server.to(roomId).emit('notice', noticeData);
   }
@@ -40,34 +45,34 @@ export class SocketService {
   async joinRoom(
     client: Socket,
     roomId: string,
-    nickname: string
+    nickname: string,
+    imageUrl: string
   ): Promise<boolean> {
     const userId: string = client.data.user.sub;
 
-    const updatedRoom = await this.roomModel.updateOne(
+    const updatedRoom = await this.roomModel.findOneAndUpdate(
       { _id: new Types.ObjectId(roomId) },
-      {
-        $inc: { currentNum: 1 },
-        $push: { currentMember: new Types.ObjectId(userId) },
-      }
+      { $push: { currentMember: new Types.ObjectId(userId) } },
+      { new: true }
     );
 
-    if (!updatedRoom.modifiedCount) {
-      console.log('스터디방 데이터 업데이트 실패');
-      throw new WsException('스터디방 데이터 업데이트 실패');
+    if (!updatedRoom) {
+      console.log('스터디방이 존재하지 않습니다.');
+      throw new WsException('스터디방이 존재하지 않습니다.');
     }
 
     client.join(roomId);
 
-    const room = await this.roomModel.findById(new Types.ObjectId(roomId));
-
     let roomManager: string;
     const currentMember = await Promise.all(
-      room.currentMember.map(async (oid) => {
+      updatedRoom.currentMember.map(async (oid) => {
         const user = await this.userModel.findById(oid, {
           nickname: true,
         });
-        if (user && (user._id as Types.ObjectId).equals(room.roomManager)) {
+        if (
+          user &&
+          (user._id as Types.ObjectId).equals(updatedRoom.roomManager)
+        ) {
           roomManager = user.nickname;
         }
         return user.nickname;
@@ -84,39 +89,71 @@ export class SocketService {
       { todo: true, isComplete: true, date: true, timeLineList: true }
     );
 
-    const roomInfo: RoomInfoDto = {
-      title: room.title,
-      notice: room.notice,
-      password: room.password,
-      isChat: room.isChat,
+    const today = this.getFormattedDate();
+    const statistic: StatisticDto = await this.statisticModel.findOneAndUpdate(
+      { userId, date: today },
+      { $setOnInsert: { userId, date: today } },
+      {
+        upsert: true,
+        new: true,
+        fields: { _id: false, userId: false, __v: false },
+      }
+    );
+
+    const allInfo: AllInfoDto = {
+      title: updatedRoom.title,
+      notice: updatedRoom.notice,
+      password: updatedRoom.password,
+      isChat: updatedRoom.isChat,
       roomManager,
       currentMember,
       planner,
+      statistic,
     };
+    // console.log(allInfo);
 
-    client.to(roomId).emit('roomInfo', roomInfo);
-    client.broadcast
+    client.to(roomId).emit('getRoomAndMyInfo', allInfo);
+    client.broadcast.to(roomId).emit('addMemberAndRequestUserInfo', {
+      nickname,
+      total: statistic.total,
+      imageUrl: imageUrl,
+      socketId: client.id,
+    });
+    return updatedRoom.isChat;
+  }
+
+  async responseUserInfo(
+    server: Server,
+    client: Socket,
+    payload: ResponseUserInfoDTO
+  ) {
+    const { roomId, nickname, imageUrl } = this.getSocketQuery(client);
+    const { socketId, ...userState } = payload;
+
+    const targetSocket = server.sockets.sockets.get(socketId);
+
+    if (!targetSocket) {
+      console.log('Target socket not found');
+      throw new WsException('사용자 상태 전송 실패');
+    }
+
+    targetSocket
       .to(roomId)
-      .emit('updateMember', { nickname, state: 'join' });
-    client.broadcast
-      .to(roomId)
-      .emit('requestUserInfo', { socketId: client.id });
-    return room.isChat;
+      .emit('responseUserInfo', { ...userState, nickname, imageUrl });
   }
 
   async leaveRoom(
     client: Socket,
     roomId: string,
     nickname: string,
-    statistic: StatisticDto,
-    planner: PlannerDto[]
+    payload: LeaveRoomDto
   ): Promise<boolean> {
+    const { isChat, planner, statistic } = payload;
     const userId: string = client.data.user.sub;
 
     const updatedRoom = await this.roomModel.updateOne(
       { _id: new Types.ObjectId(roomId) },
       {
-        $inc: { currentNum: -1 },
         $pull: { currentMember: new Types.ObjectId(userId) },
       }
     );
@@ -129,86 +166,55 @@ export class SocketService {
     client.leave(roomId);
 
     const today = this.getFormattedDate();
-    const updatedStatistic = await this.statisticModel.updateOne(
+    await this.statisticModel.updateOne(
       { date: today, userId: new Types.ObjectId(userId) },
       { ...statistic },
       { upsert: true }
     );
 
-    // if (!updatedStatistic.modifiedCount) {
-    //   console.log(`통계 업데이트 실패: ${updatedStatistic}`);
-    //   throw new WsException('통계 업데이트 실패');
-    // }
-
     planner.forEach(async (doc) => {
       const { _id, ...etcDocument } = doc;
-      const updatedPlanner = await this.plannerModel.updateOne(
-        { _id },
-        { ...etcDocument }
-      );
-      // if (!updatedPlanner.modifiedCount) {
-      //   console.log(`플래너 업데이트 실패: ${updatedPlanner}`);
-      //   throw new WsException('플래너 업데이트 실패');
-      // }
+      await this.plannerModel.updateOne({ _id }, { ...etcDocument });
     });
 
-    const { isChat } = await this.roomModel.findById(
-      new Types.ObjectId(roomId),
-      {
-        _id: false,
-        isChat: true,
-      }
-    );
-
-    client.broadcast
-      .to(roomId)
-      .emit('updateMember', { nickname, state: 'leave' });
+    client.broadcast.to(roomId).emit('subMember', { nickname });
 
     return isChat;
   }
 
-  async startTimer(
-    client: Socket,
-    restTime: number,
-    roomId: string,
-    userState: UserStateDto
-  ) {
+  async startTimer(client: Socket, payload: StartTimerDto) {
+    const { rest, state, timer } = payload;
+    const { nickname, roomId } = this.getSocketQuery(client);
+
     const userId: string = client.data.user.sub;
     const today = this.getFormattedDate();
-    const updatedStatistic = await this.statisticModel.updateOne(
+
+    await this.statisticModel.updateOne(
       { date: today, userId: new Types.ObjectId(userId) },
-      { rest: restTime },
+      { rest },
       { upsert: true }
     );
 
-    // if (!updatedStatistic.modifiedCount) {
-    //   console.log(`통계 업데이트 실패: ${updatedStatistic}`);
-    //   throw new WsException('통계 데이터 업데이트 실패');
-    // }
-
-    client.broadcast.to(roomId).emit('updateUserState', userState);
+    client.broadcast
+      .to(roomId)
+      .emit('updateUserState', { nickname, state, timer });
   }
 
-  async stopTimer(
-    client: Socket,
-    roomId: string,
-    totalTime: number,
-    maxTime: number,
-    planner: PlannerDto[],
-    userState: UserStateDto
-  ) {
+  async stopTimer(client: Socket, payload: StopTimerDto) {
+    const { total, max, planner, timer, state } = payload;
+    const { roomId, nickname } = this.getSocketQuery(client);
     const userId: string = client.data.user.sub;
     const today = this.getFormattedDate();
     const updatedStatistic = await this.statisticModel.updateOne(
       { date: today, userId: new Types.ObjectId(userId) },
-      { total: totalTime, max: maxTime },
+      { total, max },
       { upsert: true }
     );
 
-    // if (!updatedStatistic.modifiedCount) {
-    //   console.log(`통계 업데이트 실패: ${updatedStatistic}`);
-    //   throw new WsException('통계 데이터 업데이트 실패');
-    // }
+    if (!updatedStatistic.modifiedCount) {
+      console.log(`통계 업데이트 실패: ${updatedStatistic}`);
+      throw new WsException('통계 데이터 업데이트 실패');
+    }
 
     planner.forEach(async (doc) => {
       const { _id, ...etcDocument } = doc;
@@ -216,45 +222,31 @@ export class SocketService {
         { _id },
         { ...etcDocument }
       );
-      // if (!updatedPlanner.modifiedCount) {
-      //   console.log(`플래너 업데이트 실패: ${updatedPlanner}`);
-      //   throw new WsException('플래너 업데이트 실패');
-      // }
+      if (!updatedPlanner.modifiedCount) {
+        console.log(`플래너 업데이트 실패: ${updatedPlanner}`);
+        throw new WsException('플래너 업데이트 실패');
+      }
     });
 
-    client.broadcast.to(roomId).emit('updateUserState', userState);
+    client.broadcast
+      .to(roomId)
+      .emit('updateUserState', { nickname, state, timer });
   }
 
-  async updateData(
-    client: Socket,
-    totalTime: number,
-    maxTime: number,
-    restTime: number,
-    planner: PlannerDto[]
-  ) {
+  async updateData(client: Socket, payload: UpdateDto) {
+    const { statistic, planner } = payload;
     const userId: string = client.data.user.sub;
     const today = this.getFormattedDate();
 
-    const updatedStatistic = await this.statisticModel.updateOne(
+    await this.statisticModel.updateOne(
       { date: today, userId: new Types.ObjectId(userId) },
-      { total: totalTime, max: maxTime, rest: restTime },
+      { ...statistic },
       { upsert: true }
     );
 
-    // if (!updatedStatistic.modifiedCount) {
-    //   throw new WsException('통계 데이터 업데이트 실패');
-    // }
-
     planner.forEach(async (doc) => {
       const { _id, ...etcDocument } = doc;
-      const updatedPlanner = await this.plannerModel.updateOne(
-        { _id },
-        { ...etcDocument }
-      );
-      // if (!updatedPlanner.modifiedCount) {
-      //   console.log(`플래너 업데이트 실패: ${updatedPlanner}`);
-      //   throw new WsException('플래너 업데이트 실패');
-      // }
+      await this.plannerModel.updateOne({ _id }, { ...etcDocument });
     });
   }
 
@@ -262,7 +254,7 @@ export class SocketService {
     const today = new Date();
     today.setDate(today.getDate() + option);
     return today
-      .toLocaleDateString('ko-KR', {
+      .toLocaleDateString('en-CA', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -270,7 +262,18 @@ export class SocketService {
       .replace(/\s/g, '');
   }
 
-  getRoomId(socket: Socket): string {
-    return socket.handshake.query.roomId as string;
+  getFormmatedTime(): string {
+    return new Date().toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+
+  getSocketQuery(socket: Socket): SocketQueryDto {
+    const roomId = socket.handshake.query.roomId as string;
+    const nickname = socket.handshake.query.nickname as string;
+    const imageUrl = socket.handshake.query.imageUrl as string;
+    return { roomId, nickname, imageUrl };
   }
 }

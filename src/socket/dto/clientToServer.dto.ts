@@ -1,24 +1,15 @@
 import { Types } from 'mongoose';
 import { StartEndTime } from 'src/planners/planners.schema';
 
-export class JoinRoomDto {
-  nickname: string;
-}
-
-export class UserStateDto {
-  nickname: string;
-  timer: number;
-  state: StartStopState;
-}
-
 export type StartStopState = 'start' | 'stop';
 
-export class ResponseUserInfoDTO extends UserStateDto {
+export class ResponseUserInfoDTO {
+  timer: number;
+  state: StartStopState;
   socketId: string;
 }
 
 export class StatisticDto {
-  userId: Types.ObjectId;
   date: string;
   total: number;
   max: number;
@@ -40,28 +31,28 @@ export class PlannerDto {
 export class LeaveRoomDto {
   statistic: StatisticDto;
   planner: PlannerDto[];
-  nickname: string;
   isChat: boolean;
 }
 
 export class SendChatDto {
-  nickname: string;
   message: string;
 }
 
-export class StartTimerDto extends UserStateDto {
-  restTime: number;
+export class StartTimerDto {
+  timer: number;
+  state: StartStopState;
+  rest: number;
 }
 
-export class StopTimerDto extends UserStateDto {
-  totalTime: number;
-  maxTime: number;
+export class StopTimerDto {
+  timer: number;
+  state: StartStopState;
+  total: number;
+  max: number;
   planner: PlannerDto[];
 }
 
 export class UpdateDto {
-  totalTime: number;
-  maxTime: number;
-  restTime: number;
+  statistic: StatisticDto;
   planner: PlannerDto[];
 }

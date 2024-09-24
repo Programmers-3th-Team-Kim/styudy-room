@@ -1,6 +1,6 @@
-import { PlannerDto } from './clientToServer.dto';
+import { PlannerDto, StatisticDto } from './clientToServer.dto';
 
-export class RoomInfoDto {
+export class AllInfoDto {
   title: string;
   notice: string;
   password: string;
@@ -8,4 +8,11 @@ export class RoomInfoDto {
   roomManager: string;
   currentMember: string[];
   planner: PlannerDto[];
+  statistic: StatisticDto;
+}
+
+export class SocketQueryDto {
+  roomId: string;
+  nickname: string;
+  imageUrl: string;
 }
