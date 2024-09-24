@@ -9,11 +9,14 @@ export class PlannersService {
     @InjectModel(Planner.name) private plannerModel: Model<PlannerDocument>
   ) {}
 
-  async createPlan(plannerDto: Partial<Planner>): Promise<Planner> {
+  async createPlan(
+    userId: string,
+    plannerDto: Partial<Planner>
+  ): Promise<Planner> {
     try {
       const newPlanQuery = new this.plannerModel({
         ...plannerDto,
-        userId: new Types.ObjectId(plannerDto.userId),
+        userId: new Types.ObjectId(userId),
       });
 
       const savedPlan = await newPlanQuery.save();
@@ -77,10 +80,15 @@ export class PlannersService {
     return await newChildPlanQuery.save();
   }
 
-  async showAll(date: string): Promise<Planner[]> {
+  async showAll(userId: string, date: string): Promise<Planner[]> {
     const planners = await this.plannerModel
       .aggregate([
-        { $match: { date: date } },
+        {
+          $match: {
+            _id: new Types.ObjectId(userId),
+            date: date,
+          },
+        },
         {
           $addFields: {
             sortField: {
@@ -115,22 +123,28 @@ export class PlannersService {
   }
 
   async updatePlan(
-    plannerId: Types.ObjectId,
+    userId: string,
+    plannerId: string,
     plannerDto: Partial<Planner>
   ): Promise<Planner> {
-    const { date, parentObjectId, userId, ...updatePlannerDto } = plannerDto;
+    const { date, parentObjectId, ...updatePlannerDto } = plannerDto;
+    let rootId: Types.ObjectId = new Types.ObjectId(plannerId);
 
-    if (plannerDto.parentObjectId) {
-      plannerId = plannerDto.parentObjectId;
+    if (parentObjectId) {
+      rootId = parentObjectId;
     }
 
     const updatePlanQuery = await this.plannerModel
-      .findByIdAndUpdate(plannerId, updatePlannerDto, {
-        new: true,
-      })
+      .findByIdAndUpdate(
+        { _id: rootId, userId: new Types.ObjectId(userId) },
+        updatePlannerDto,
+        {
+          new: true,
+        }
+      )
       .exec();
 
-    const childPlannerId = await this.findAll(plannerId);
+    const childPlannerId = await this.findAll(rootId);
 
     if (childPlannerId) {
       for (const id of childPlannerId) {
@@ -162,16 +176,30 @@ export class PlannersService {
     return findAllQuery.map((planner) => planner._id as Types.ObjectId);
   }
 
-  async deletePlan(plannerId: Types.ObjectId): Promise<Planner> {
+  async deletePlan(userId: string, plannerId: string): Promise<Planner> {
     const deletePlanQuery = await this.plannerModel
-      .findByIdAndDelete(new Types.ObjectId(plannerId))
+      .findByIdAndDelete({
+        id_: new Types.ObjectId(plannerId),
+        userId: new Types.ObjectId(userId),
+      })
       .exec();
 
     return deletePlanQuery;
   }
 
-  async toggleIsComplete(plannerId: Types.ObjectId): Promise<Planner> {
-    const planner = await this.plannerModel.findById(plannerId);
+  private async deletePlanCascade(parentId: Types.ObjectId): Promise<Planner> {
+    const updateCascadePlanQuery = await this.plannerModel
+      .findByIdAndDelete(parentId)
+      .exec();
+
+    return updateCascadePlanQuery;
+  }
+
+  async toggleIsComplete(userId: string, plannerId: string): Promise<Planner> {
+    const planner = await this.plannerModel.findOne({
+      _id: new Types.ObjectId(plannerId),
+      userId: new Types.ObjectId(userId),
+    });
     if (!planner) {
       throw new NotFoundException(`${plannerId} is not found`);
     }

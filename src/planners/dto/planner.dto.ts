@@ -11,18 +11,18 @@ export class PlannerDto {
 
   endTime: string | undefined;
 
-  repeatDays: string[];
+  repeatDays: string[] | undefined;
 
-  repeatWeeks: number;
+  repeatWeeks: number | undefined;
 
   parentObjectId?: Types.ObjectId | undefined;
 
   isComplete: boolean;
 
-  timelineList: {
-    startTime: string;
-    endTime: string;
-  }[];
-
-  userId: Types.ObjectId;
+  timelineList:
+    | {
+        startTime: string;
+        endTime: string;
+      }[]
+    | undefined;
 }
