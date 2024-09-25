@@ -106,4 +106,16 @@ export class AuthService {
       throw new UnauthorizedException('Refresh Token이 유효하지 않습니다.');
     }
   }
+
+  async getUserInfo(userId: string) {
+    const user = await this.usersService.findOne(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+    }
+
+    const userInfo = user.toObject();
+    delete userInfo.password;
+    return userInfo;
+  }
 }
