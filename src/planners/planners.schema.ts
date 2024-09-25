@@ -1,10 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-
-export class StartEndTime {
-  startTime: string;
-  EndTime: string;
-}
+import { StartEndTime } from './dto/planner.dto';
 
 @Schema({ collection: 'Planners' })
 export class Planner {
@@ -38,7 +34,7 @@ export class Planner {
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   userId: Types.ObjectId;
 
-  @Prop({ type: [{ startTime: String, endTime: String }] })
+  @Prop({ default: [] })
   timelineList: StartEndTime[];
 }
 

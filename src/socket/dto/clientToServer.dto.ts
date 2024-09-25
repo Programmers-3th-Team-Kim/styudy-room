@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { StartEndTime } from 'src/planners/planners.schema';
+import { StartEndTime } from 'src/planners/dto/planner.dto';
 
 export type StartStopState = 'start' | 'stop';
 
