@@ -1,4 +1,4 @@
-import { PlannerDto, StatisticDto } from './clientToServer.dto';
+import { SPlannerDto, SStatisticDto } from './clientToServer.dto';
 
 export class AllInfoDto {
   title: string;
@@ -7,8 +7,8 @@ export class AllInfoDto {
   isChat: boolean;
   roomManager: string;
   currentMember: string[];
-  planner: PlannerDto[];
-  statistic: StatisticDto;
+  planner: SPlannerDto[];
+  statistic: SStatisticDto;
 }
 
 export class SocketQueryDto {

@@ -39,7 +39,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const isValid = await this.socketJwtAuthService.validateSocket(client);
     if (!isValid) {
-      throw new WsException('jwt token 인증 실패');
+      return;
     }
     console.log(`Client connected: ${client.data.user.sub}`);
 

@@ -11,7 +11,7 @@ import {
   LeaveRoomDto,
   ResponseUserInfoDTO,
   StartTimerDto,
-  StatisticDto,
+  SStatisticDto,
   StopTimerDto,
   UpdateDto,
 } from './dto/clientToServer.dto';
@@ -90,7 +90,7 @@ export class SocketService {
     );
 
     const today = this.getFormattedDate();
-    const statistic: StatisticDto = await this.statisticModel.findOneAndUpdate(
+    const statistic: SStatisticDto = await this.statisticModel.findOneAndUpdate(
       { userId, date: today },
       { $setOnInsert: { userId, date: today } },
       {
