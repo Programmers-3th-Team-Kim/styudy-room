@@ -44,5 +44,16 @@ export class AuthController {
     return { access_token: newAccessToken };
   }
 
+  @Post('logout')
+  async logout(@Res() res) {
+    res.cookie('refresh_token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 0,
+    });
+
+    return res.status(200).json({ message: '로그아웃 성공' });
+  }
   }
 }
