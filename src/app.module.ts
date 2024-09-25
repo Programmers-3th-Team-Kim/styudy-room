@@ -7,6 +7,7 @@ import { MongooseConfigService } from './configs/mongoose.config.service';
 import { User, UserSchema } from './users/users.schema';
 import { RoomsModule } from './rooms/rooms.module';
 import { AuthModule } from './auth/auth.module';
+import { ImageModule } from './image/image.modules';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AuthModule } from './auth/auth.module';
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     RoomsModule,
     AuthModule,
+    ImageModule,
   ],
   controllers: [AppController],
   providers: [AppService],
