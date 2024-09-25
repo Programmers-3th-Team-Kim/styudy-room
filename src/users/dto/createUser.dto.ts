@@ -7,11 +7,11 @@ import {
 } from 'class-validator';
 
 export class CreateUserDto {
-  @IsString()
-  @IsNotEmpty({ message: '아이디를 입력해주세요.' })
+  @IsString({ message: '아이디는 문자열이어야 합니다.' })
+  @IsNotEmpty({ message: '아이디를 입력해 주세요.' })
   @MinLength(6, { message: '아이디는 최소 6자 이상이어야 합니다.' })
   @MaxLength(16, { message: '아이디는 최대 16자 이내여야 합니다.' })
-  @Matches(/^[a-zA-Z0-9]{6,16}$/, {
+  @Matches(/^[a-z0-9]{6,16}$/, {
     message: '아이디는 영어와 숫자로 구성된 6~16글자여야 합니다.',
   })
   id: string;
