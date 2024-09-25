@@ -34,14 +34,14 @@ export class RoomsService {
       ];
     }
 
-    if (typeof isPublic !== 'undefined') {
+    if (isPublic !== undefined) {
       query['isPublic'] = isPublic;
     }
 
-    if (typeof isPossible !== 'undefined') {
+    if (isPossible !== undefined) {
       query['$expr'] = isPossible
-        ? { $gt: ['$maxNum', '$currentNum'] }
-        : { $eq: ['$maxNum', '$currentNum'] };
+        ? { $gt: ['$maxNum', { $size: '$currentMember' }] }
+        : { $lte: ['$maxNum', { $size: '$currentMember' }] };
     }
 
     const rooms = await this.roomModel
