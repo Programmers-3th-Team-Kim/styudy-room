@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { User, UserSchema } from '../users/users.schema';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { SocketJwtAuthService } from './socketJwtAuth.service';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { UsersModule } from '../users/users.module';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, SocketJwtAuthService],
   controllers: [AuthController],
+  exports: [SocketJwtAuthService],
 })
 export class AuthModule {}

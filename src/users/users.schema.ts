@@ -7,7 +7,7 @@ class DDay {
   todo: string;
 }
 
-@Schema({ collection: 'Users', strict: true })
+@Schema({ collection: 'Users', strict: 'throw', minimize: false })
 export class User extends Document {
   @Prop({ required: true, unique: true })
   id: string;
@@ -18,13 +18,13 @@ export class User extends Document {
   @Prop({ required: true, unique: true })
   nickname: string;
 
-  @Prop()
+  @Prop({ default: '' })
   imageUrl: string;
 
-  @Prop()
+  @Prop({ default: '' })
   introduction: string;
 
-  @Prop({ type: DDay })
+  @Prop({ type: DDay, default: { date: null, todo: '' } })
   dDay: DDay;
 }
 
