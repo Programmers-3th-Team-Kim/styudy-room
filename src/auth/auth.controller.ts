@@ -1,4 +1,11 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UnauthorizedException,
+  Res,
+  Req,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
 
@@ -12,12 +19,30 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body('id') id: string, @Body('password') password: string) {
-    const user = await this.authService.validateUser(id, password);
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+  async login(
+    @Body('id') id: string,
+    @Body('password') password: string,
+    @Res() res
+  ) {
+    try {
+      const user = await this.authService.validateUser(id, password);
+      const loginResponse = await this.authService.login(user, res);
+      return res.json(loginResponse);
+    } catch (error) {
+      console.error('로그인 실패', error.message);
+      throw new UnauthorizedException('로그인 실패');
     }
-    return this.authService.login(user);
+  }
+
+  @Post('refresh-token')
+  async refreshToken(@Req() req) {
+    const refreshToken = req.cookies['refresh_token'];
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh Token을 찾을 수 없습니다.');
+    }
+    const newAccessToken = await this.authService.refreshToken(refreshToken);
+    return { access_token: newAccessToken };
+  }
+
   }
 }
