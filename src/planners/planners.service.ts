@@ -41,7 +41,7 @@ export class PlannersService {
               const dateOffset = ((selectedDay - today + 7) % 7) + i * 7;
 
               const selectedDate = new Date();
-              selectedDate.setDate(date.getDate() + dateOffset + 1);
+              selectedDate.setDate(date.getDate() + dateOffset);
               const planDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
               createDataNum += 1;
