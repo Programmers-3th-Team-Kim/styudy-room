@@ -1,12 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Planner, PlannerDocument } from './planners.schema';
+import { Planner } from './planners.schema';
 
 @Injectable()
 export class PlannersService {
   constructor(
-    @InjectModel(Planner.name) private plannerModel: Model<PlannerDocument>
+    @InjectModel(Planner.name) private plannerModel: Model<Planner>
   ) {}
 
   async createPlan(
@@ -14,6 +14,7 @@ export class PlannersService {
     plannerDto: Partial<Planner>
   ): Promise<Planner> {
     try {
+      let createDataNum = 1;
       const newPlanQuery = new this.plannerModel({
         ...plannerDto,
         userId: new Types.ObjectId(userId),
@@ -43,12 +44,19 @@ export class PlannersService {
               selectedDate.setDate(date.getDate() + dateOffset + 1);
               const planDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
-              await this.createPlanCascade(planId, planDate, plannerDto);
+              createDataNum += 1;
+              await this.createPlanCascade(
+                userId,
+                planId,
+                planDate,
+                plannerDto
+              );
             }
           }
         }
       }
 
+      console.log(`${createDataNum} 개의 데이터가 생성되었습니다.`);
       return savedPlan;
     } catch (error) {
       console.log(error);
@@ -66,6 +74,7 @@ export class PlannersService {
   };
 
   private async createPlanCascade(
+    userId: string,
     parentId: Types.ObjectId,
     plannerDate: string,
     plannerDto: Partial<Planner>
@@ -73,7 +82,7 @@ export class PlannersService {
     const newChildPlanQuery = new this.plannerModel({
       ...plannerDto,
       date: plannerDate,
-      userId: new Types.ObjectId(plannerDto.userId),
+      userId: new Types.ObjectId(userId),
       parentObjectId: new Types.ObjectId(parentId),
     });
 
@@ -85,7 +94,7 @@ export class PlannersService {
       .aggregate([
         {
           $match: {
-            _id: new Types.ObjectId(userId),
+            userId: new Types.ObjectId(userId),
             date: date,
           },
         },
@@ -119,6 +128,8 @@ export class PlannersService {
         },
       ])
       .exec();
+
+    console.log('데이터 조회');
     return planners;
   }
 
@@ -126,54 +137,56 @@ export class PlannersService {
     userId: string,
     plannerId: string,
     plannerDto: Partial<Planner>
-  ): Promise<Planner> {
+  ): Promise<any> {
     const { date, parentObjectId, ...updatePlannerDto } = plannerDto;
     let rootId: Types.ObjectId = new Types.ObjectId(plannerId);
+
+    const today = new Date();
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     if (parentObjectId) {
       rootId = parentObjectId;
     }
 
-    const updatePlanQuery = await this.plannerModel
-      .findByIdAndUpdate(
-        { _id: rootId, userId: new Types.ObjectId(userId) },
-        updatePlannerDto,
-        {
-          new: true,
+    // 오늘 이후 날짜의 데이터 삭제
+    await this.deletePlanCascade(rootId, todayString);
+
+    // 오늘 이후 날짜의 데이터 재생성
+    const rootData = await this.plannerModel.findById(rootId).exec();
+    const rootDate = new Date(rootData.date);
+
+    const repeatDays = updatePlannerDto.repeatDays;
+    const repeatWeeks = updatePlannerDto.repeatWeeks;
+    let recreateDataNum: number = 0;
+
+    if (repeatDays) {
+      for (const day of repeatDays) {
+        for (let i: number = 0; i < repeatWeeks; i++) {
+          const selectedDay = this.mappingDays[day];
+          const rootDateNum = rootDate.getDay();
+
+          if (selectedDay == 0 || rootDateNum < selectedDay) {
+            const planId: Types.ObjectId = rootData._id as Types.ObjectId;
+            const dateOffset = ((selectedDay - rootDateNum + 7) % 7) + i * 7;
+
+            const selectedDate = new Date();
+            selectedDate.setDate(rootDate.getDate() + dateOffset);
+            const planDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+
+            if (today < selectedDate) {
+              recreateDataNum += 1;
+              await this.createPlanCascade(
+                userId,
+                planId,
+                planDate,
+                updatePlannerDto
+              );
+            }
+          }
         }
-      )
-      .exec();
-
-    const childPlannerId = await this.findAll(rootId);
-
-    if (childPlannerId) {
-      for (const id of childPlannerId) {
-        await this.updatePlanCascade(id, updatePlannerDto);
       }
     }
-
-    return updatePlanQuery;
-  }
-
-  private async updatePlanCascade(
-    parentId: Types.ObjectId,
-    plannerDto: Partial<Planner>
-  ): Promise<Planner> {
-    const updateCascadePlanQuery = await this.plannerModel
-      .findByIdAndUpdate(parentId, plannerDto, {
-        new: true,
-      })
-      .exec();
-
-    return updateCascadePlanQuery;
-  }
-
-  private async findAll(parentId: Types.ObjectId): Promise<any[]> {
-    const findAllQuery = await this.plannerModel
-      .find({ parentObjectId: new Types.ObjectId(parentId) })
-      .exec();
-
-    return findAllQuery.map((planner) => planner._id as Types.ObjectId);
+    console.log(`${recreateDataNum} 개의 데이터가 재생성되었습니다.`);
   }
 
   async deletePlan(userId: string, plannerId: string): Promise<Planner> {
@@ -187,12 +200,18 @@ export class PlannersService {
     return deletePlanQuery;
   }
 
-  private async deletePlanCascade(parentId: Types.ObjectId): Promise<Planner> {
-    const updateCascadePlanQuery = await this.plannerModel
-      .findByIdAndDelete(parentId)
-      .exec();
+  private async deletePlanCascade(
+    parentId: Types.ObjectId,
+    todayString: string
+  ): Promise<any> {
+    const deleteCascadePlanQuery = await this.plannerModel.deleteMany({
+      parentObjectId: new Types.ObjectId(parentId),
+      date: { $gt: todayString },
+    });
 
-    return updateCascadePlanQuery;
+    console.log(
+      `${deleteCascadePlanQuery.deletedCount} 개의 데이터가 삭제되었습니다.`
+    );
   }
 
   async toggleIsComplete(userId: string, plannerId: string): Promise<Planner> {

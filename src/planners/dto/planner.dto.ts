@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { StartEndTime } from '../planners.schema';
 
 export class PlannerDto {
   subject: string | undefined;
@@ -19,10 +20,5 @@ export class PlannerDto {
 
   isComplete: boolean;
 
-  timelineList:
-    | {
-        startTime: string;
-        endTime: string;
-      }[]
-    | undefined;
+  timelineList: StartEndTime[] | undefined;
 }

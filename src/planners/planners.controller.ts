@@ -47,7 +47,7 @@ export class PlannersController {
     @Req() req: any,
     @Param('plannerId') plannerId: string,
     @Body() updatePlannerDto: PlannerDto
-  ): Promise<Planner> {
+  ): Promise<any> {
     const userId = req.user.userId;
     return this.plannersService.updatePlan(userId, plannerId, updatePlannerDto);
   }
