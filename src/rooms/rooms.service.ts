@@ -33,10 +33,13 @@ export class RoomsService {
     const query: FilterQuery<Room> = {};
 
     if (search) {
-      query['$or'] = [
-        { title: { $regex: search, $options: 'i' } },
-        { tagList: { $in: [new RegExp(search, 'i')] } },
-      ];
+      const searchWords = search.split(' ');
+      query['$and'] = searchWords.map((word) => ({
+        $or: [
+          { title: { $regex: word, $options: 'i' } },
+          { tagList: { $in: [new RegExp(word, 'i')] } },
+        ],
+      }));
     }
 
     if (isPublic !== undefined) {
