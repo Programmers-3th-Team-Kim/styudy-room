@@ -28,6 +28,7 @@ export class AuthController {
     @Res() res
   ) {
     try {
+      console.log('로그인 시도');
       const user = await this.authService.validateUser(id, password);
       const loginResponse = await this.authService.login(user, res);
       return res.json(loginResponse);
