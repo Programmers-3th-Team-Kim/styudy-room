@@ -10,8 +10,8 @@ export class SocketJwtAuthService {
     const token = socket.handshake.auth?.token;
 
     if (!token || !token.startsWith('Bearer ')) {
-      socket.emit('error', { message: 'Missing or invalid token' }); // 여기서 오류를 클라이언트로 전송
-      return false; // 연결을 종료하지 않고 오류를 보냄
+      socket.emit('error', { message: 'Missing or invalid token' });
+      return false;
     }
 
     const jwtToken = token.split(' ')[1];

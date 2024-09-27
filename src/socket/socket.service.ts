@@ -9,10 +9,9 @@ import { Statistic } from 'src/statistics/statistics.schema';
 import { User } from 'src/users/users.schema';
 import {
   LeaveRoomDto,
-  PlannerDto,
   ResponseUserInfoDTO,
   StartTimerDto,
-  StatisticDto,
+  SStatisticDto,
   StopTimerDto,
   UpdateDto,
 } from './dto/clientToServer.dto';
@@ -82,7 +81,7 @@ export class SocketService {
 
     const yesterday = this.getFormattedDate(-1);
     const tomorrow = this.getFormattedDate(+1);
-    const planner: PlannerDto[] = await this.plannerModel.find(
+    const planner = await this.plannerModel.find(
       {
         userId: new Types.ObjectId(userId),
         date: { $gte: yesterday, $lte: tomorrow },
@@ -91,7 +90,7 @@ export class SocketService {
     );
 
     const today = this.getFormattedDate();
-    const statistic: StatisticDto = await this.statisticModel.findOneAndUpdate(
+    const statistic: SStatisticDto = await this.statisticModel.findOneAndUpdate(
       { userId, date: today },
       { $setOnInsert: { userId, date: today } },
       {

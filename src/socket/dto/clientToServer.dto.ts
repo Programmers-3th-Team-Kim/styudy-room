@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { StartEndTime } from 'src/planners/dto/planner.dto';
+import { StartEndTime } from 'src/planners/planners.schema';
 
 export type StartStopState = 'start' | 'stop';
 
@@ -9,7 +9,7 @@ export class ResponseUserInfoDTO {
   socketId: string;
 }
 
-export class StatisticDto {
+export class SStatisticDto {
   date: string;
   total: number;
   max: number;
@@ -20,7 +20,7 @@ export class StatisticDto {
   night: number;
 }
 
-export class PlannerDto {
+export class SPlannerDto {
   _id: Types.ObjectId;
   todo: string;
   isComplete: boolean;
@@ -29,8 +29,8 @@ export class PlannerDto {
 }
 
 export class LeaveRoomDto {
-  statistic: StatisticDto;
-  planner: PlannerDto[];
+  statistic: SStatisticDto;
+  planner: SPlannerDto[];
   isChat: boolean;
 }
 
@@ -49,10 +49,10 @@ export class StopTimerDto {
   state: StartStopState;
   total: number;
   max: number;
-  planner: PlannerDto[];
+  planner: SPlannerDto[];
 }
 
 export class UpdateDto {
-  statistic: StatisticDto;
-  planner: PlannerDto[];
+  statistic: SStatisticDto;
+  planner: SPlannerDto[];
 }

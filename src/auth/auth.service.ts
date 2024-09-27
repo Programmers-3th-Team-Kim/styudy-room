@@ -19,11 +19,10 @@ export class AuthService {
   ) {}
 
   getJwtAccessToken(user: User): string {
-    const payload = { id: user.id, _id: user._id };
-    // console.log(user._id);
+    const payload = { id: user.id, sub: user._id };
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: '60m', // 테스트를 위해 60m로 늘림 (기존: 15m)
+      expiresIn: '15m',
     });
   }
 
@@ -95,29 +94,12 @@ export class AuthService {
     };
   }
 
-  // async refreshToken(refreshToken: string): Promise<string> {
-  //   try {
-  //     const payload = this.jwtService.verify(refreshToken, {
-  //       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-  //     });
-  //     const newAccessToken = this.getJwtAccessToken(payload);
-  //     return newAccessToken;
-  //   } catch (error) {
-  //     console.error(error);
-  //     throw new UnauthorizedException('Refresh Token이 유효하지 않습니다.');
-  //   }
-  // }
-
   async refreshToken(refreshToken: string): Promise<string> {
     try {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
-      const user = await this.usersService.findOne(payload.id);
-      if (!user) {
-        throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
-      }
-      const newAccessToken = this.getJwtAccessToken(user);
+      const newAccessToken = this.getJwtAccessToken(payload);
       return newAccessToken;
     } catch (error) {
       console.error(error);

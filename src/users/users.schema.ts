@@ -27,7 +27,7 @@ export class User extends Document {
   @Prop({ default: '' })
   introduction: string;
 
-  @Prop({ type: DDay, default: { date: null, todo: '' } }) undefined;
+  @Prop({ type: DDay, default: { date: null, todo: '' } })
   dDay: DDay;
 }
 

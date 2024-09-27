@@ -1,17 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-import { StartEndTime } from './dto/planner.dto';
 
-@Schema({ collection: 'Planners' })
+export class StartEndTime {
+  startTime: string;
+  EndTime: string;
+}
+
+@Schema({ collection: 'Planners', strict: 'throw', minimize: false })
 export class Planner {
   @Prop({ default: '' })
   subject: string;
 
   @Prop({ required: true })
   todo: string;
-
-  @Prop({ required: true })
-  date: string;
 
   @Prop({ default: '' })
   startTime: string;
@@ -20,22 +21,25 @@ export class Planner {
   endTime: string;
 
   @Prop({ default: [] })
+  timeLineList: StartEndTime[];
+
+  @Prop({ default: [] })
   repeatDays: string[];
 
-  @Prop({ default: 1 })
+  @Prop({ default: 0 })
   repeatWeeks: number;
 
-  @Prop({ default: false, required: true })
+  @Prop({ type: Types.ObjectId, default: null })
+  parentObjectId: Types.ObjectId;
+
+  @Prop({ default: false })
   isComplete: boolean;
 
-  @Prop({ required: false })
-  parentObjectId?: Types.ObjectId;
+  @Prop({ required: true })
+  date: string;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   userId: Types.ObjectId;
-
-  @Prop({ default: [] })
-  timelineList: StartEndTime[];
 }
 
 export const PlannerSchema = SchemaFactory.createForClass(Planner);
