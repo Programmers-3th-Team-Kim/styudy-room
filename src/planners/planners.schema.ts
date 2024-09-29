@@ -23,6 +23,9 @@ export class Planner {
   @Prop({ default: [] })
   timeLineList: StartEndTime[];
 
+  @Prop({ default: 0 })
+  totalTime: number;
+
   @Prop({ default: [] })
   repeatDays: string[];
 

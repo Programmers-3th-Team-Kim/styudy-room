@@ -6,7 +6,6 @@ import {
   OnGatewayDisconnect,
   WebSocketServer,
   ConnectedSocket,
-  WsException,
 } from '@nestjs/websockets';
 import { SocketService } from './socket.service';
 import { Socket, Server } from 'socket.io';
@@ -39,6 +38,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const isValid = await this.socketJwtAuthService.validateSocket(client);
     if (!isValid) {
+      client.disconnect();
       return;
     }
     console.log(`Client connected: ${client.data.user.sub}`);
@@ -57,7 +57,11 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.data.user.sub}`);
+    if (client.data.user) {
+      console.log(`Client disconnected: ${client.data.user.sub}`);
+      return;
+    }
+    console.log('Client disconnected');
   }
 
   @SubscribeMessage('responseUserInfo')

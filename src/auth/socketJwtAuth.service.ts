@@ -21,7 +21,7 @@ export class SocketJwtAuthService {
       socket.data.user = payload;
       return true;
     } catch (error) {
-      console.log(error);
+      console.log(error.name);
       socket.emit('error', { message: 'Invalid token' });
       return false;
     }

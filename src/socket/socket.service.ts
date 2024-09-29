@@ -11,7 +11,6 @@ import {
   LeaveRoomDto,
   ResponseUserInfoDTO,
   StartTimerDto,
-  SStatisticDto,
   StopTimerDto,
   UpdateDto,
 } from './dto/clientToServer.dto';
@@ -63,41 +62,26 @@ export class SocketService {
 
     client.join(roomId);
 
-    let roomManager: string;
-    const currentMember = await Promise.all(
-      updatedRoom.currentMember.map(async (oid) => {
-        const user = await this.userModel.findById(oid, {
-          nickname: true,
-        });
-        if (
-          user &&
-          (user._id as Types.ObjectId).equals(updatedRoom.roomManager)
-        ) {
-          roomManager = user.nickname;
-        }
-        return user.nickname;
-      })
-    );
-
-    const yesterday = this.getFormattedDate(-1);
-    const tomorrow = this.getFormattedDate(+1);
-    const planner = await this.plannerModel.find(
-      {
-        userId: new Types.ObjectId(userId),
-        date: { $gte: yesterday, $lte: tomorrow },
-      },
-      { todo: true, isComplete: true, date: true, timeLineList: true }
-    );
+    const { roomManager, currentMember } =
+      await this.getRoomManagerAndMembersToNickname(updatedRoom);
 
     const today = this.getFormattedDate();
-    const statistic: SStatisticDto = await this.statisticModel.findOneAndUpdate(
-      { userId, date: today },
-      { $setOnInsert: { userId, date: today } },
-      {
-        upsert: true,
-        new: true,
-        fields: { _id: false, userId: false, __v: false },
-      }
+    const planner = await this.plannerModel
+      .find(
+        {
+          userId: new Types.ObjectId(userId),
+          date: today,
+        },
+        { todo: true, isComplete: true, date: true, totalTime: true }
+      )
+      .lean();
+
+    const totalTime = planner.reduce((sum, currentPlanner) => {
+      return sum + currentPlanner.totalTime;
+    }, 0);
+
+    const plannerWithoutTotalTime = planner.map(
+      ({ totalTime, ...rest }) => rest
     );
 
     const allInfo: AllInfoDto = {
@@ -107,16 +91,17 @@ export class SocketService {
       isChat: updatedRoom.isChat,
       roomManager,
       currentMember,
-      planner,
-      statistic,
+      planner: plannerWithoutTotalTime,
+      totalTime,
     };
     // console.log(allInfo);
 
     client.to(roomId).emit('getRoomAndMyInfo', allInfo);
     client.broadcast.to(roomId).emit('addMemberAndRequestUserInfo', {
       nickname,
-      total: statistic.total,
-      imageUrl: imageUrl,
+      imageUrl,
+      totalTime,
+      state: 'stop',
       socketId: client.id,
     });
     return updatedRoom.isChat;
@@ -275,5 +260,21 @@ export class SocketService {
     const nickname = socket.handshake.query.nickname as string;
     const imageUrl = socket.handshake.query.imageUrl as string;
     return { roomId, nickname, imageUrl };
+  }
+
+  async getRoomManagerAndMembersToNickname(room: any): Promise<any> {
+    let roomManager: string;
+    const currentMember = await Promise.all(
+      room.currentMember.map(async (oid) => {
+        const user = await this.userModel.findById(oid, {
+          nickname: true,
+        });
+        if (user && (user._id as Types.ObjectId).equals(room.roomManager)) {
+          roomManager = user.nickname;
+        }
+        return user.nickname; // user가 null일 경우 빈 문자열 반환
+      })
+    );
+    return { roomManager, currentMember };
   }
 }
