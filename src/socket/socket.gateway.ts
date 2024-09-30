@@ -50,7 +50,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const room = await this.socketService.joinRoom(client, roomId);
       const allInfo = await this.socketService.getRoomAndMyInfo(client, room);
 
-      client.to(roomId).emit('getRoomAndMyInfo', allInfo);
+      client.emit('getRoomAndMyInfo', allInfo);
       client.broadcast.to(roomId).emit('addMemberAndRequestUserInfo', {
         nickname,
         imageUrl,
@@ -122,8 +122,9 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       nickname,
       imageUrl,
     };
+    console.log(chatData);
     client.broadcast.to(roomId).emit('receiveChat', chatData);
-    client.to(roomId).emit('responseChat', { success: true });
+    client.emit('responseChat', { success: true });
   }
 
   // 작업 필요
