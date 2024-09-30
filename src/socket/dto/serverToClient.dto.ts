@@ -1,6 +1,6 @@
-import { SPlannerDto } from './clientToServer.dto';
+import { SPlannerDto } from './planner.dto';
 
-export class AllInfoDto {
+export class RoomAndMyInfo {
   title: string;
   notice: string;
   password: string;

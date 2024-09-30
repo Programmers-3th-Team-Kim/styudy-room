@@ -9,12 +9,17 @@ import { Statistic } from 'src/statistics/statistics.schema';
 import { User } from 'src/users/users.schema';
 import {
   LeaveRoomDto,
-  ResponseUserInfoDTO,
   StartTimerDto,
   StopTimerDto,
   UpdateDto,
 } from './dto/clientToServer.dto';
-import { AllInfoDto, SocketQueryDto } from './dto/serverToClient.dto';
+import { RoomAndMyInfo, SocketQueryDto } from './dto/serverToClient.dto';
+import {
+  CreatePlannerDto,
+  ModifyPlanner,
+  SPlannerDto,
+} from './dto/planner.dto';
+import { Temp } from './temps.schema';
 
 @Injectable()
 export class SocketService {
@@ -22,7 +27,8 @@ export class SocketService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Room.name) private roomModel: Model<Room>,
     @InjectModel(Planner.name) private plannerModel: Model<Planner>,
-    @InjectModel(Statistic.name) private statisticModel: Model<Statistic>
+    @InjectModel(Statistic.name) private statisticModel: Model<Statistic>,
+    @InjectModel(Temp.name) private tempModel: Model<Temp>
   ) {}
 
   joinChat(server: Server, roomId: string, nickname: string) {
@@ -41,13 +47,13 @@ export class SocketService {
     server.to(roomId).emit('notice', noticeData);
   }
 
-  async joinRoom(
-    client: Socket,
-    roomId: string,
-    nickname: string,
-    imageUrl: string
-  ): Promise<boolean> {
+  async joinRoom(client: Socket, roomId: string): Promise<Room> {
     const userId: string = client.data.user.sub;
+
+    const roomExists = await this.roomModel.findById(roomId);
+    if (!roomExists) {
+      throw new WsException('스터디방이 존재하지 않습니다.');
+    }
 
     const updatedRoom = await this.roomModel.findOneAndUpdate(
       { _id: new Types.ObjectId(roomId) },
@@ -55,78 +61,40 @@ export class SocketService {
       { new: true }
     );
 
-    if (!updatedRoom) {
-      console.log('스터디방이 존재하지 않습니다.');
-      throw new WsException('스터디방이 존재하지 않습니다.');
-    }
-
     client.join(roomId);
 
+    return updatedRoom;
+  }
+
+  async getRoomAndMyInfo(client: Socket, room: any): Promise<RoomAndMyInfo> {
+    const userId: string = client.data.user.sub;
     const { roomManager, currentMember } =
-      await this.getRoomManagerAndMembersToNickname(updatedRoom);
+      await this.getRoomManagerAndMembersToNickname(room);
 
     const today = this.getFormattedDate();
-    const planner = await this.plannerModel
-      .find(
-        {
-          userId: new Types.ObjectId(userId),
-          date: today,
-        },
-        { todo: true, isComplete: true, date: true, totalTime: true }
-      )
-      .lean();
+    const planner = await this.getPlanner(client, today);
 
-    const totalTime = planner.reduce((sum, currentPlanner) => {
-      return sum + currentPlanner.totalTime;
-    }, 0);
-
-    const plannerWithoutTotalTime = planner.map(
-      ({ totalTime, ...rest }) => rest
+    const { totalTime } = await this.statisticModel.findOne(
+      { date: today, userId: new Types.ObjectId(userId) },
+      { _id: false, totalTime: true },
+      { upsert: true }
     );
 
-    const allInfo: AllInfoDto = {
-      title: updatedRoom.title,
-      notice: updatedRoom.notice,
-      password: updatedRoom.password,
-      isChat: updatedRoom.isChat,
+    const allInfo: RoomAndMyInfo = {
+      title: room.title,
+      notice: room.notice,
+      password: room.password,
+      isChat: room.isChat,
       roomManager,
       currentMember,
-      planner: plannerWithoutTotalTime,
+      planner,
       totalTime,
     };
-    // console.log(allInfo);
 
-    client.to(roomId).emit('getRoomAndMyInfo', allInfo);
-    client.broadcast.to(roomId).emit('addMemberAndRequestUserInfo', {
-      nickname,
-      imageUrl,
-      totalTime,
-      state: 'stop',
-      socketId: client.id,
-    });
-    return updatedRoom.isChat;
+    return allInfo;
   }
 
-  async responseUserInfo(
-    server: Server,
-    client: Socket,
-    payload: ResponseUserInfoDTO
-  ) {
-    const { roomId, nickname, imageUrl } = this.getSocketQuery(client);
-    const { socketId, ...userState } = payload;
-
-    const targetSocket = server.sockets.sockets.get(socketId);
-
-    if (!targetSocket) {
-      console.log('Target socket not found');
-      throw new WsException('사용자 상태 전송 실패');
-    }
-
-    targetSocket
-      .to(roomId)
-      .emit('responseUserInfo', { ...userState, nickname, imageUrl });
-  }
-
+  // 작업 필요
   async leaveRoom(
     client: Socket,
     roomId: string,
@@ -167,24 +135,20 @@ export class SocketService {
     return isChat;
   }
 
-  async startTimer(client: Socket, payload: StartTimerDto) {
-    const { rest, state, timer } = payload;
-    const { nickname, roomId } = this.getSocketQuery(client);
-
+  // 작업 필요
+  async start(client: Socket, payload: any) {
+    const { plannerId, time } = payload;
     const userId: string = client.data.user.sub;
-    const today = this.getFormattedDate();
 
-    await this.statisticModel.updateOne(
-      { date: today, userId: new Types.ObjectId(userId) },
-      { rest },
-      { upsert: true }
-    );
-
-    client.broadcast
-      .to(roomId)
-      .emit('updateUserState', { nickname, state, timer });
+    const temp = await this.tempModel.create({
+      plannerId: new Types.ObjectId(plannerId),
+      userId: new Types.ObjectId(userId),
+      maxStartTime: time,
+    });
+    console.log(temp);
   }
 
+  // 작업 필요
   async stopTimer(client: Socket, payload: StopTimerDto) {
     const { total, max, planner, timer, state } = payload;
     const { roomId, nickname } = this.getSocketQuery(client);
@@ -218,6 +182,7 @@ export class SocketService {
       .emit('updateUserState', { nickname, state, timer });
   }
 
+  // 작업 필요
   async updateData(client: Socket, payload: UpdateDto) {
     const { statistic, planner } = payload;
     const userId: string = client.data.user.sub;
@@ -233,6 +198,80 @@ export class SocketService {
       const { _id, ...etcDocument } = doc;
       await this.plannerModel.updateOne({ _id }, { ...etcDocument });
     });
+  }
+
+  async getPlanner(client: Socket, date: string): Promise<SPlannerDto[]> {
+    const userId: string = client.data.user.sub;
+
+    const yesterday = this.getFormattedDate(-1);
+    const tomorrow = this.getFormattedDate(+1);
+
+    if (!(yesterday <= date && date <= tomorrow)) {
+      console.log('플래너를 불러올 수 없습니다.');
+      throw new WsException('플래너를 불러올 수 없습니다.');
+    }
+    const planner = await this.plannerModel.find(
+      { date, userId: new Types.ObjectId(userId) },
+      { todo: true, isComplete: true, date: true, totalTime: true }
+    );
+
+    return planner;
+  }
+
+  async createPlanner(
+    payload: CreatePlannerDto,
+    client: Socket
+  ): Promise<SPlannerDto> {
+    const { date, todo } = payload;
+    const userId: string = client.data.user.sub;
+
+    const planner = await this.plannerModel.create({
+      date,
+      todo,
+      userId: new Types.ObjectId(userId),
+    });
+
+    const response = {
+      _id: planner._id,
+      date: planner.date,
+      todo: planner.todo,
+      isComplete: planner.isComplete,
+      totalTime: planner.totalTime,
+    };
+
+    return response;
+  }
+
+  async modifyPlanner(payload: ModifyPlanner): Promise<SPlannerDto> {
+    const { plannerId, todo, isComplete } = payload;
+
+    const updateFields: any = {};
+    if (todo !== undefined) {
+      updateFields.todo = todo;
+    }
+    if (isComplete !== undefined) {
+      updateFields.isComplete = isComplete;
+    }
+
+    const planner = await this.plannerModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(plannerId) },
+      updateFields,
+      { new: true }
+    );
+
+    if (!planner) {
+      throw new WsException('플래너를 찾을 수 없습니다.');
+    }
+
+    const response = {
+      _id: planner._id,
+      date: planner.date,
+      todo: planner.todo,
+      isComplete: planner.isComplete,
+      totalTime: planner.totalTime,
+    };
+
+    return response;
   }
 
   getFormattedDate(option: number = 0): string {
@@ -272,7 +311,7 @@ export class SocketService {
         if (user && (user._id as Types.ObjectId).equals(room.roomManager)) {
           roomManager = user.nickname;
         }
-        return user.nickname; // user가 null일 경우 빈 문자열 반환
+        return user.nickname;
       })
     );
     return { roomManager, currentMember };
