@@ -9,7 +9,6 @@ import { Statistic } from 'src/statistics/statistics.schema';
 import { User } from 'src/users/users.schema';
 import {
   LeaveRoomDto,
-  StartTimerDto,
   StopTimerDto,
   UpdateDto,
 } from './dto/clientToServer.dto';

@@ -23,8 +23,10 @@ export class Planner {
   @Prop({ default: '' })
   endTime: string;
 
-  @Prop({ default: [] })
+  @Prop({ default: 0 })
+  totalTime: number;
 
+  @Prop({ default: [] })
   repeatDays: string[];
 
   @Prop({ default: 1 })
