@@ -7,13 +7,13 @@ export class Statistic {
   date: string;
 
   @Prop({ default: 0 })
-  total: number;
+  totalTime: number;
 
   @Prop({ default: 0 })
-  max: number;
+  maxTime: number;
 
   @Prop({ default: 0 })
-  rest: number;
+  restTime: number;
 
   @Prop({ default: 0 })
   mornning: number;

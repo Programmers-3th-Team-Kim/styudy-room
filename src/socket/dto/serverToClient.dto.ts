@@ -1,6 +1,6 @@
-import { SPlannerDto, SStatisticDto } from './clientToServer.dto';
+import { SPlannerDto } from './planner.dto';
 
-export class AllInfoDto {
+export class RoomAndMyInfo {
   title: string;
   notice: string;
   password: string;
@@ -8,7 +8,7 @@ export class AllInfoDto {
   roomManager: string;
   currentMember: string[];
   planner: SPlannerDto[];
-  statistic: SStatisticDto;
+  totalTime: number;
 }
 
 export class SocketQueryDto {

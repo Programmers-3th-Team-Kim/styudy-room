@@ -6,28 +6,28 @@ import {
   OnGatewayDisconnect,
   WebSocketServer,
   ConnectedSocket,
-  WsException,
 } from '@nestjs/websockets';
 import { SocketService } from './socket.service';
 import { Socket, Server } from 'socket.io';
 import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
-import { UseFilters } from '@nestjs/common';
-import { WebSocketExceptionFilter } from './socketExceptionFilter';
 import {
   LeaveRoomDto,
   ResponseUserInfoDTO,
   SendChatDto,
-  StartTimerDto,
   StopTimerDto,
   UpdateDto,
 } from './dto/clientToServer.dto';
+import {
+  CreatePlannerDto,
+  getPlannerDto,
+  ModifyPlanner,
+} from './dto/planner.dto';
 
 @WebSocketGateway({
   namespace: '/rooms',
   transports: ['websocket'],
   cors: { origin: '*' },
 })
-@UseFilters(new WebSocketExceptionFilter())
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
@@ -39,35 +39,58 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const isValid = await this.socketJwtAuthService.validateSocket(client);
     if (!isValid) {
+      client.disconnect();
       return;
     }
     console.log(`Client connected: ${client.data.user.sub}`);
 
     const { roomId, nickname, imageUrl } =
       this.socketService.getSocketQuery(client);
-    const isChat: boolean = await this.socketService.joinRoom(
-      client,
-      roomId,
-      nickname,
-      imageUrl
-    );
-    if (isChat) {
-      this.socketService.joinChat(this.server, roomId, nickname);
+    try {
+      const room = await this.socketService.joinRoom(client, roomId);
+      const allInfo = await this.socketService.getRoomAndMyInfo(client, room);
+
+      client.to(roomId).emit('getRoomAndMyInfo', allInfo);
+      client.broadcast.to(roomId).emit('addMemberAndRequestUserInfo', {
+        nickname,
+        imageUrl,
+        totalTime: allInfo.totalTime,
+        state: 'stop',
+        socketId: client.id,
+      });
+
+      if (room.isChat) {
+        this.socketService.joinChat(this.server, roomId, nickname);
+      }
+    } catch (error) {
+      console.log(error);
+      client.to(roomId).emit('error', { error: error.message });
     }
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.data.user.sub}`);
+    if (client.data.user) {
+      console.log(`Client disconnected: ${client.data.user.sub}`);
+      return;
+    }
+    console.log('Client disconnected');
   }
 
   @SubscribeMessage('responseUserInfo')
-  async responseUserInfo(
+  responseUserInfo(
     @MessageBody() payload: ResponseUserInfoDTO,
     @ConnectedSocket() client: Socket
   ) {
-    this.socketService.responseUserInfo(this.server, client, payload);
+    const { socketId, ...userState } = payload;
+
+    const { nickname, imageUrl } = this.socketService.getSocketQuery(client);
+
+    this.server
+      .to(socketId)
+      .emit('responseUserInfo', { nickname, imageUrl, ...userState });
   }
 
+  // 작업 필요
   @SubscribeMessage('leaveRoom')
   async leaveRoom(
     @MessageBody() payload: LeaveRoomDto,
@@ -103,14 +126,13 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.to(roomId).emit('responseChat', { success: true });
   }
 
-  @SubscribeMessage('startTimer')
-  startTimer(
-    @MessageBody() payload: StartTimerDto,
-    @ConnectedSocket() client: Socket
-  ) {
-    this.socketService.startTimer(client, payload);
+  // 작업 필요
+  @SubscribeMessage('start')
+  start(@MessageBody() payload: any, @ConnectedSocket() client: Socket) {
+    this.socketService.start(client, payload);
   }
 
+  // 작업 필요
   @SubscribeMessage('stopTimer')
   stopTimer(
     @MessageBody() payload: StopTimerDto,
@@ -119,11 +141,60 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.socketService.stopTimer(client, payload);
   }
 
+  // 작업 필요
   @SubscribeMessage('updateData')
   updateData(
     @MessageBody() payload: UpdateDto,
     @ConnectedSocket() client: Socket
   ) {
     this.socketService.updateData(client, payload);
+  }
+
+  @SubscribeMessage('getPlanner')
+  async getPlanner(
+    @MessageBody() payload: getPlannerDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { date } = payload;
+    const { roomId } = this.socketService.getSocketQuery(client);
+
+    try {
+      const planner = await this.socketService.getPlanner(client, date);
+      client.to(roomId).emit('responseGetPlanner', planner);
+    } catch (error) {
+      console.log(error);
+      client.to(roomId).emit('error', { error: error.message });
+    }
+  }
+
+  @SubscribeMessage('createPlanner')
+  async createPlanner(
+    @MessageBody() payload: CreatePlannerDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { roomId } = this.socketService.getSocketQuery(client);
+    try {
+      const planner = await this.socketService.createPlanner(payload, client);
+      client.to(roomId).emit('responseCreateTodo', planner);
+    } catch (error) {
+      console.log(error);
+      client.to(roomId).emit('error', { error: error.message });
+    }
+  }
+
+  @SubscribeMessage('modifyPlanner')
+  async modifyPlanner(
+    @MessageBody() payload: ModifyPlanner,
+    @ConnectedSocket() client: Socket
+  ) {
+    const { roomId } = this.socketService.getSocketQuery(client);
+
+    try {
+      const planner = await this.socketService.modifyPlanner(payload);
+      client.to(roomId).emit('responseUpdatePlanner', planner);
+    } catch (error) {
+      console.log(error);
+      client.to(roomId).emit('error', { error: error.message });
+    }
   }
 }

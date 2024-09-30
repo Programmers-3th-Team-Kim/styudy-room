@@ -14,14 +14,17 @@ export class Planner {
   @Prop({ required: true })
   todo: string;
 
+  @Prop({ required: true })
+  date: string;
+
   @Prop({ default: '' })
   startTime: string;
 
   @Prop({ default: '' })
   endTime: string;
 
-  @Prop({ default: [] })
-  timeLineList: StartEndTime[];
+  @Prop({ default: 0 })
+  totalTime: number;
 
   @Prop({ default: [] })
   repeatDays: string[];
@@ -29,17 +32,17 @@ export class Planner {
   @Prop({ default: 0 })
   repeatWeeks: number;
 
-  @Prop({ type: Types.ObjectId, default: null })
-  parentObjectId: Types.ObjectId;
-
   @Prop({ default: false })
   isComplete: boolean;
 
-  @Prop({ required: true })
-  date: string;
+  @Prop({ required: false })
+  parentObjectId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   userId: Types.ObjectId;
+
+  @Prop({ type: [{ startTime: String, endTime: String }] })
+  timelineList: StartEndTime[];
 }
 
 export const PlannerSchema = SchemaFactory.createForClass(Planner);
