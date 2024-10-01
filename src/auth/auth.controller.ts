@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -59,7 +59,7 @@ export class AuthController {
     return res.status(200).json({ message: '로그아웃 성공' });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   async getMe(@Req() req) {
     const userInfo = await this.authService.getUserInfo(req.user.id);
