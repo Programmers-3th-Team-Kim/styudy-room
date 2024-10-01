@@ -7,12 +7,12 @@ import { Planner } from 'src/planners/planners.schema';
 import { Room } from 'src/rooms/rooms.schema';
 import { Statistic } from 'src/statistics/statistics.schema';
 import { User } from 'src/users/users.schema';
+import { PayloadDto } from './dto/clientToServer.dto';
 import {
-  LeaveRoomDto,
-  StopTimerDto,
-  UpdateDto,
-} from './dto/clientToServer.dto';
-import { RoomAndMyInfo, SocketQueryDto } from './dto/serverToClient.dto';
+  convertDateNumberToStringDto,
+  RoomAndMyInfo,
+  SocketQueryDto,
+} from './dto/serverToClient.dto';
 import {
   CreatePlannerDto,
   ModifyPlanner,
@@ -56,7 +56,7 @@ export class SocketService {
 
     const updatedRoom = await this.roomModel.findOneAndUpdate(
       { _id: new Types.ObjectId(roomId) },
-      { $push: { currentMember: new Types.ObjectId(userId) } },
+      { $addToSet: { currentMember: new Types.ObjectId(userId) } },
       { new: true }
     );
 
@@ -73,11 +73,12 @@ export class SocketService {
     const today = this.getFormattedDate();
     const planner = await this.getPlanner(client, today);
 
-    const { totalTime } = await this.statisticModel.findOne(
+    const statistic = await this.statisticModel.findOne(
       { date: today, userId: new Types.ObjectId(userId) },
-      { _id: false, totalTime: true },
-      { upsert: true }
+      { _id: false, totalTime: true }
     );
+
+    const { totalTime = 0 } = statistic || {};
 
     const allInfo: RoomAndMyInfo = {
       title: room.title,
@@ -94,109 +95,380 @@ export class SocketService {
   }
 
   // 작업 필요
-  async leaveRoom(
-    client: Socket,
-    roomId: string,
-    nickname: string,
-    payload: LeaveRoomDto
-  ): Promise<boolean> {
-    const { isChat, planner, statistic } = payload;
+  async save(client: Socket, currentTime: number) {
     const userId: string = client.data.user.sub;
 
-    const updatedRoom = await this.roomModel.updateOne(
-      { _id: new Types.ObjectId(roomId) },
+    const today = this.getFormattedDate();
+
+    const temp = await this.tempModel.findOne({
+      date: today,
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!temp || !temp.maxStartTime) {
+      console.log('입장 후 바로 종료 or 정지 후 종료');
+      return;
+    }
+
+    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+    const endTime = this.convertDateNumberToString(currentTime);
+    const todoTotal = currentTime - temp.plannerStartTime;
+    // 플래너 업데이트
+    const planner = await this.plannerModel.updateOne(
       {
-        $pull: { currentMember: new Types.ObjectId(userId) },
+        _id: new Types.ObjectId(temp.plannerId),
+      },
+      {
+        $push: {
+          timelineList: {
+            startTime: { date: startTime.date, time: startTime.time },
+            endTime: { date: endTime.date, time: endTime.time },
+          },
+        },
+        $inc: { totalTime: todoTotal },
       }
     );
 
-    if (!updatedRoom.modifiedCount) {
-      console.log(`스터디방 업데이트 실패: ${updatedRoom}`);
-      throw new WsException('스터디방 업데이트 실패');
+    if (planner.modifiedCount !== 1) {
+      throw new WsException('플래너 업데이트 에러');
+    }
+
+    const maxTime = currentTime - temp.maxStartTime;
+    // statistics 업데이트
+    const statistic = await this.statisticModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        date: today,
+      },
+      {
+        $inc: { totalTime: todoTotal },
+        $max: { maxTime },
+      },
+      { upsert: true }
+    );
+
+    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
+      throw new WsException('통계 업데이트 에러');
+    }
+
+    await this.tempModel.deleteMany({ userId: new Types.ObjectId(userId) });
+  }
+
+  async leaveRoom(client: Socket, roomId: string) {
+    const userId: string = client.data.user.sub;
+
+    const roomExists = await this.roomModel.findById(roomId);
+    if (!roomExists) {
+      throw new WsException('스터디방이 존재하지 않습니다.');
+    }
+
+    const updatedRoom = await this.roomModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(roomId) },
+      { $pull: { currentMember: new Types.ObjectId(userId) } }
+    );
+
+    if (!updatedRoom.currentMember.length) {
+      await this.roomModel.deleteOne({
+        _id: new Types.ObjectId(roomId),
+      });
     }
 
     client.leave(roomId);
 
-    const today = this.getFormattedDate();
-    await this.statisticModel.updateOne(
-      { date: today, userId: new Types.ObjectId(userId) },
-      { ...statistic },
-      { upsert: true }
-    );
-
-    planner.forEach(async (doc) => {
-      const { _id, ...etcDocument } = doc;
-      await this.plannerModel.updateOne({ _id }, { ...etcDocument });
-    });
-
-    client.broadcast.to(roomId).emit('subMember', { nickname });
-
-    return isChat;
+    return updatedRoom;
   }
 
   // 작업 필요
-  async start(client: Socket, payload: any) {
-    const { plannerId, time } = payload;
+  async start(client: Socket, payload: PayloadDto) {
+    const { plannerId, currentTime, totalTime } = payload;
     const userId: string = client.data.user.sub;
-
-    const temp = await this.tempModel.create({
-      plannerId: new Types.ObjectId(plannerId),
-      userId: new Types.ObjectId(userId),
-      maxStartTime: time,
-    });
-    console.log(temp);
-  }
-
-  // 작업 필요
-  async stopTimer(client: Socket, payload: StopTimerDto) {
-    const { total, max, planner, timer, state } = payload;
     const { roomId, nickname } = this.getSocketQuery(client);
-    const userId: string = client.data.user.sub;
-    const today = this.getFormattedDate();
-    const updatedStatistic = await this.statisticModel.updateOne(
-      { date: today, userId: new Types.ObjectId(userId) },
-      { total, max },
-      { upsert: true }
-    );
 
-    if (!updatedStatistic.modifiedCount) {
-      console.log(`통계 업데이트 실패: ${updatedStatistic}`);
-      throw new WsException('통계 데이터 업데이트 실패');
+    const today = this.getFormattedDate();
+
+    const temp = await this.tempModel.findOne({
+      userId: new Types.ObjectId(userId),
+      date: today,
+    });
+
+    if (temp) {
+      if (!temp.restStartTime) {
+        console.log('시작 중복 실행');
+        return;
+      }
+
+      const restTime = currentTime - temp.restStartTime;
+
+      const statistic = await this.statisticModel.updateOne(
+        {
+          userId: new Types.ObjectId(userId),
+          date: today,
+        },
+        {
+          $inc: { restTime },
+        },
+        { upsert: true }
+      );
+
+      if (statistic.modifiedCount !== 1) {
+        throw new WsException('통계 업데이트 에러');
+      }
     }
 
-    planner.forEach(async (doc) => {
-      const { _id, ...etcDocument } = doc;
-      const updatedPlanner = await this.plannerModel.updateOne(
-        { _id },
-        { ...etcDocument }
-      );
-      if (!updatedPlanner.modifiedCount) {
-        console.log(`플래너 업데이트 실패: ${updatedPlanner}`);
-        throw new WsException('플래너 업데이트 실패');
+    const updatedtemp = await this.tempModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        date: today,
+      },
+      {
+        plannerId: new Types.ObjectId(plannerId),
+        maxStartTime: currentTime,
+        plannerStartTime: currentTime,
+        restStartTime: 0,
+      },
+      {
+        upsert: true,
       }
-    });
+    );
+
+    if (!updatedtemp) {
+      throw new WsException('시작 에러');
+    }
 
     client.broadcast
       .to(roomId)
-      .emit('updateUserState', { nickname, state, timer });
+      .emit('updateUserState', { nickname, totalTime, state: 'start' });
   }
 
   // 작업 필요
-  async updateData(client: Socket, payload: UpdateDto) {
-    const { statistic, planner } = payload;
+  async stop(client: Socket, payload: PayloadDto) {
+    const { plannerId, currentTime, totalTime } = payload;
+    const { roomId, nickname } = this.getSocketQuery(client);
     const userId: string = client.data.user.sub;
+
     const today = this.getFormattedDate();
 
-    await this.statisticModel.updateOne(
-      { date: today, userId: new Types.ObjectId(userId) },
-      { ...statistic },
+    const temp = await this.tempModel.findOne({
+      date: today,
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!temp || !temp.maxStartTime) {
+      console.log('일시정지 중복 실행');
+      return;
+    }
+
+    if (temp.plannerId.toString() !== plannerId) {
+      throw new WsException('일시정지 에러');
+    }
+
+    const updatedTemp = await this.tempModel.updateOne(
+      {
+        date: today,
+        userId: new Types.ObjectId(userId),
+      },
+      {
+        plannerId: new Types.ObjectId(plannerId),
+        restStartTime: currentTime,
+        maxStartTime: 0,
+      }
+    );
+
+    if (updatedTemp.modifiedCount !== 1) {
+      throw new WsException('일시정지 에러');
+    }
+
+    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+    const endTime = this.convertDateNumberToString(currentTime);
+    const todoTotal = currentTime - temp.plannerStartTime;
+    // 플래너 업데이트
+    const planner = await this.plannerModel.updateOne(
+      {
+        _id: new Types.ObjectId(plannerId),
+      },
+      {
+        $push: {
+          timelineList: {
+            startTime: { date: startTime.date, time: startTime.time },
+            endTime: { date: endTime.date, time: endTime.time },
+          },
+        },
+        $inc: { totalTime: todoTotal },
+      }
+    );
+
+    if (planner.modifiedCount !== 1) {
+      throw new WsException('플래너 업데이트 에러');
+    }
+
+    const maxTime = currentTime - temp.maxStartTime;
+    // statistics 업데이트
+    const statistic = await this.statisticModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        date: today,
+      },
+      {
+        $inc: { totalTime: todoTotal },
+        $max: { maxTime },
+      },
       { upsert: true }
     );
 
-    planner.forEach(async (doc) => {
-      const { _id, ...etcDocument } = doc;
-      await this.plannerModel.updateOne({ _id }, { ...etcDocument });
+    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
+      throw new WsException('통계 업데이트 에러');
+    }
+
+    client.broadcast
+      .to(roomId)
+      .emit('updateUserState', { nickname, totalTime, state: 'stop' });
+  }
+
+  // 작업 필요
+  async change(client: Socket, payload: PayloadDto) {
+    const { plannerId, currentTime, totalTime } = payload;
+    const { roomId, nickname } = this.getSocketQuery(client);
+    const userId: string = client.data.user.sub;
+
+    const today = this.getFormattedDate();
+
+    const temp = await this.tempModel.findOne({
+      date: today,
+      userId: new Types.ObjectId(userId),
     });
+
+    if (
+      !temp ||
+      !temp.maxStartTime ||
+      temp.plannerId.toString() === plannerId
+    ) {
+      console.log('정지상태에서 할 일 변경');
+      return;
+    }
+
+    const updatedTemp = await this.tempModel.updateOne(
+      {
+        date: today,
+        userId: new Types.ObjectId(userId),
+      },
+      {
+        plannerId: new Types.ObjectId(plannerId),
+        plannerStartTime: currentTime,
+      }
+    );
+
+    if (updatedTemp.modifiedCount !== 1) {
+      throw new WsException('할 일 변경 에러');
+    }
+
+    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+    const endTime = this.convertDateNumberToString(currentTime);
+    const todoTotal = currentTime - temp.plannerStartTime;
+    // 플래너 업데이트
+    const planner = await this.plannerModel.updateOne(
+      {
+        _id: new Types.ObjectId(plannerId),
+      },
+      {
+        $push: {
+          timelineList: {
+            startTime: { date: startTime.date, time: startTime.time },
+            endTime: { date: endTime.date, time: endTime.time },
+          },
+        },
+        $inc: { totalTime: todoTotal },
+      }
+    );
+
+    if (planner.modifiedCount !== 1) {
+      throw new WsException('플래너 업데이트 에러');
+    }
+
+    // statistics 업데이트
+    const statistic = await this.statisticModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        date: today,
+      },
+      {
+        $inc: { totalTime: todoTotal },
+      },
+      { upsert: true }
+    );
+
+    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
+      throw new WsException('통계 업데이트 에러');
+    }
+
+    client.broadcast
+      .to(roomId)
+      .emit('updateUserState', { nickname, totalTime, state: 'change' });
+  }
+
+  // 작업 필요
+  async update(client: Socket, payload: PayloadDto) {
+    const { plannerId, currentTime } = payload;
+    const userId: string = client.data.user.sub;
+
+    const today = this.getFormattedDate();
+
+    const temp = await this.tempModel.findOne({
+      date: today,
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!temp) {
+      console.log('데이터 업데이트 에러');
+      return;
+    }
+
+    const updatedTemp = await this.tempModel.updateOne(
+      {
+        date: today,
+        userId: new Types.ObjectId(userId),
+      },
+      {
+        plannerId: new Types.ObjectId(plannerId),
+        plannerStartTime: currentTime,
+      }
+    );
+
+    if (updatedTemp.modifiedCount !== 1) {
+      throw new WsException('할 일 변경 에러');
+    }
+
+    const todoTotal = currentTime - temp.plannerStartTime;
+    // 플래너 업데이트
+    const planner = await this.plannerModel.updateOne(
+      {
+        _id: new Types.ObjectId(plannerId),
+      },
+      {
+        $inc: { totalTime: todoTotal },
+      }
+    );
+
+    if (planner.modifiedCount !== 1) {
+      throw new WsException('플래너 업데이트 에러');
+    }
+
+    // statistics 업데이트
+    const statistic = await this.statisticModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        date: today,
+      },
+      {
+        $inc: { totalTime: todoTotal },
+      },
+      { upsert: true }
+    );
+
+    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
+      throw new WsException('통계 업데이트 에러');
+    }
+
+    client.emit('responseUpdateData', { sucess: true });
   }
 
   async getPlanner(client: Socket, date: string): Promise<SPlannerDto[]> {
@@ -314,5 +586,12 @@ export class SocketService {
       })
     );
     return { roomManager, currentMember };
+  }
+
+  convertDateNumberToString(dateNum: number): convertDateNumberToStringDto {
+    const dateTypeDate = new Date(dateNum);
+    const date = dateTypeDate.toLocaleString('en-CA', { hour12: false });
+    const array = date.split(', ');
+    return { date: array[0], time: array[1] };
   }
 }

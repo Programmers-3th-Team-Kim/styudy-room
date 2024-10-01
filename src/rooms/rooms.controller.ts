@@ -29,6 +29,7 @@ export class RoomsController {
   ): Promise<Room> {
     return this.roomsService.createRoom(createRoomDto, req.user.userId);
   }
+
   @Get()
   async showRoomList(
     @Query() requestRoomDTO: RequestRoomDto

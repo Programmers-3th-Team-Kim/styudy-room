@@ -16,3 +16,8 @@ export class SocketQueryDto {
   nickname: string;
   imageUrl: string;
 }
+
+export class convertDateNumberToStringDto {
+  date: string;
+  time: string;
+}

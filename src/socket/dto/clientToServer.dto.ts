@@ -45,3 +45,9 @@ export class UpdateDto {
   statistic: SStatisticDto;
   planner: SPlannerDto[];
 }
+
+export class PayloadDto {
+  plannerId: string;
+  currentTime: number;
+  totalTime?: number;
+}
