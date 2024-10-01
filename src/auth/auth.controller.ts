@@ -39,7 +39,7 @@ export class AuthController {
 
   @Post('refresh-token')
   async refreshToken(@Req() req) {
-    const refreshToken = req.cookies['refresh_token'];
+    const refreshToken = req.cookies['refreshToken'];
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh Token을 찾을 수 없습니다.');
     }
@@ -49,7 +49,7 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Res() res) {
-    res.cookie('refresh_token', '', {
+    res.cookie('refreshToken', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
