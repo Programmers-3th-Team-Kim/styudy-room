@@ -40,11 +40,15 @@ export class AuthController {
   @Post('refresh-token')
   async refreshToken(@Req() req) {
     const refreshToken = req.cookies['refreshToken'];
+
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh Token을 찾을 수 없습니다.');
     }
-    const newAccessToken = await this.authService.refreshToken(refreshToken);
-    return { access_token: newAccessToken };
+
+    const { accessToken, user } =
+      await this.authService.refreshToken(refreshToken);
+
+    return { accessToken, user };
   }
 
   @Post('logout')
