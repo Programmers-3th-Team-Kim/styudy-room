@@ -15,10 +15,15 @@ export class Temp {
   @Prop({ default: 0 })
   restStartTime: number;
 
-  @Prop({ default: 0 })
-  lastUpdateTime: number;
-
-  @Prop({ required: true })
+  @Prop({
+    default: new Date()
+      .toLocaleDateString('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      .replace(/\s/g, ''),
+  })
   date: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })

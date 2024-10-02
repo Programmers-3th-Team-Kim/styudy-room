@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { WsException } from '@nestjs/websockets';
-import { Model, Types } from 'mongoose';
+import { Model, Types, UpdateWriteOpResult } from 'mongoose';
 import { Server, Socket } from 'socket.io';
 import { Planner } from 'src/planners/planners.schema';
 import { Room } from 'src/rooms/rooms.schema';
@@ -10,7 +10,6 @@ import { User } from 'src/users/users.schema';
 import { PayloadDto } from './dto/clientToServer.dto';
 import {
   convertDateNumberToStringDto,
-  RoomAndMyInfo,
   SocketQueryDto,
 } from './dto/serverToClient.dto';
 import {
@@ -19,6 +18,7 @@ import {
   SPlannerDto,
 } from './dto/planner.dto';
 import { Temp } from './temps.schema';
+import { RoomAndMyInfo } from './dto/joinRoom.dto';
 
 @Injectable()
 export class SocketService {
@@ -94,31 +94,33 @@ export class SocketService {
     return allInfo;
   }
 
-  // 작업 필요
   async save(client: Socket, currentTime: number) {
     const userId: string = client.data.user.sub;
 
     const today = this.getFormattedDate();
 
-    const temp = await this.tempModel.findOne({
-      date: today,
-      userId: new Types.ObjectId(userId),
-    });
+    const temp = await this.findTemp(userId);
+
+    await this.tempModel.deleteMany({ userId: new Types.ObjectId(userId) });
 
     if (!temp || !temp.maxStartTime) {
       console.log('입장 후 바로 종료 or 정지 후 종료');
       return;
     }
 
-    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-    const endTime = this.convertDateNumberToString(currentTime);
-    const todoTotal = currentTime - temp.plannerStartTime;
-    // 플래너 업데이트
-    const planner = await this.plannerModel.updateOne(
-      {
-        _id: new Types.ObjectId(temp.plannerId),
-      },
-      {
+    await this.splitTimeIntoIntervals(
+      userId,
+      temp.plannerStartTime,
+      currentTime
+    );
+
+    if (today !== temp.date) {
+      const time0 = this.getStartOfDayTimestamp(currentTime);
+
+      const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+      const endTime = this.convertDateNumberToString(time0);
+      const todoTotal = time0 - temp.plannerStartTime;
+      const updatePlannerFields = {
         $push: {
           timelineList: {
             startTime: { date: startTime.date, time: startTime.time },
@@ -126,32 +128,52 @@ export class SocketService {
           },
         },
         $inc: { totalTime: todoTotal },
-      }
-    );
+      };
+      const planner = await this.updatePlanner(
+        temp.plannerId,
+        updatePlannerFields
+      );
 
-    if (planner.modifiedCount !== 1) {
-      throw new WsException('플래너 업데이트 에러');
+      const newPlanner = await this.plannerModel.create({
+        todo: planner.todo,
+        date: today,
+        userId: new Types.ObjectId(userId),
+      });
+
+      const updateStatisticFields = {
+        $inc: { totalTime: todoTotal },
+      };
+      await this.updateStatistic(userId, temp.date, updateStatisticFields);
+
+      await this.tempModel.updateOne(
+        { userId: new Types.ObjectId(userId) },
+        { date: today }
+      );
+
+      temp.plannerId = newPlanner._id;
+      temp.plannerStartTime = time0;
     }
+
+    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+    const endTime = this.convertDateNumberToString(currentTime);
+    const todoTotal = currentTime - temp.plannerStartTime;
+    const updatePlannerFields = {
+      $push: {
+        timelineList: {
+          startTime: { date: startTime.date, time: startTime.time },
+          endTime: { date: endTime.date, time: endTime.time },
+        },
+      },
+      $inc: { totalTime: todoTotal },
+    };
+    await this.updatePlanner(temp.plannerId, updatePlannerFields);
 
     const maxTime = currentTime - temp.maxStartTime;
-    // statistics 업데이트
-    const statistic = await this.statisticModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-        date: today,
-      },
-      {
-        $inc: { totalTime: todoTotal },
-        $max: { maxTime },
-      },
-      { upsert: true }
-    );
-
-    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
-      throw new WsException('통계 업데이트 에러');
-    }
-
-    await this.tempModel.deleteMany({ userId: new Types.ObjectId(userId) });
+    const updateStatisticFields = {
+      $inc: { totalTime: todoTotal },
+      $max: { maxTime },
+    };
+    await this.updateStatistic(userId, today, updateStatisticFields);
   }
 
   async leaveRoom(client: Socket, roomId: string) {
@@ -178,18 +200,15 @@ export class SocketService {
     return updatedRoom;
   }
 
-  // 작업 필요
   async start(client: Socket, payload: PayloadDto) {
-    const { plannerId, currentTime, totalTime } = payload;
+    const { currentTime, totalTime } = payload;
+    let plannerId = payload.plannerId;
     const userId: string = client.data.user.sub;
     const { roomId, nickname } = this.getSocketQuery(client);
 
     const today = this.getFormattedDate();
 
-    const temp = await this.tempModel.findOne({
-      userId: new Types.ObjectId(userId),
-      date: today,
-    });
+    const temp = await this.findTemp(userId);
 
     if (temp) {
       if (!temp.restStartTime) {
@@ -197,28 +216,42 @@ export class SocketService {
         return;
       }
 
-      const restTime = currentTime - temp.restStartTime;
+      if (today !== temp.date) {
+        const time0 = this.getStartOfDayTimestamp(currentTime);
 
-      const statistic = await this.statisticModel.updateOne(
-        {
-          userId: new Types.ObjectId(userId),
+        const planner = await this.plannerModel.findById(plannerId);
+
+        const newPlanner = await this.plannerModel.create({
+          todo: planner.todo,
           date: today,
-        },
-        {
-          $inc: { restTime },
-        },
-        { upsert: true }
-      );
+          userId: new Types.ObjectId(userId),
+        });
 
-      if (statistic.modifiedCount !== 1) {
-        throw new WsException('통계 업데이트 에러');
+        const restTime = time0 - temp.restStartTime;
+        const updateStatisticFields = {
+          $inc: { restTime },
+        };
+        await this.updateStatistic(userId, temp.date, updateStatisticFields);
+
+        await this.tempModel.updateOne(
+          { userId: new Types.ObjectId(userId) },
+          { date: today }
+        );
+
+        plannerId = newPlanner._id.toString();
+        temp.restStartTime = time0;
       }
+
+      const restTime = currentTime - temp.restStartTime;
+      const updateStatisticFields = {
+        $inc: { restTime },
+      };
+      await this.updateStatistic(userId, today, updateStatisticFields);
     }
 
     const updatedtemp = await this.tempModel.updateOne(
       {
         userId: new Types.ObjectId(userId),
-        date: today,
       },
       {
         plannerId: new Types.ObjectId(plannerId),
@@ -240,18 +273,15 @@ export class SocketService {
       .emit('updateUserState', { nickname, totalTime, state: 'start' });
   }
 
-  // 작업 필요
   async stop(client: Socket, payload: PayloadDto) {
-    const { plannerId, currentTime, totalTime } = payload;
+    const { currentTime, totalTime } = payload;
+    let plannerId = payload.plannerId;
     const { roomId, nickname } = this.getSocketQuery(client);
     const userId: string = client.data.user.sub;
 
     const today = this.getFormattedDate();
 
-    const temp = await this.tempModel.findOne({
-      date: today,
-      userId: new Types.ObjectId(userId),
-    });
+    const temp = await this.findTemp(userId);
 
     if (!temp || !temp.maxStartTime) {
       console.log('일시정지 중복 실행');
@@ -262,9 +292,51 @@ export class SocketService {
       throw new WsException('일시정지 에러');
     }
 
+    await this.splitTimeIntoIntervals(
+      userId,
+      temp.plannerStartTime,
+      currentTime
+    );
+
+    if (today !== temp.date) {
+      const time0 = this.getStartOfDayTimestamp(currentTime);
+
+      const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+      const endTime = this.convertDateNumberToString(time0);
+      const todoTotal = time0 - temp.plannerStartTime;
+      const updatePlannerFields = {
+        $push: {
+          timelineList: {
+            startTime: { date: startTime.date, time: startTime.time },
+            endTime: { date: endTime.date, time: endTime.time },
+          },
+        },
+        $inc: { totalTime: todoTotal },
+      };
+      const planner = await this.updatePlanner(plannerId, updatePlannerFields);
+
+      const newPlanner = await this.plannerModel.create({
+        todo: planner.todo,
+        date: today,
+        userId: new Types.ObjectId(userId),
+      });
+
+      const updateStatisticFields = {
+        $inc: { totalTime: todoTotal },
+      };
+      await this.updateStatistic(userId, temp.date, updateStatisticFields);
+
+      await this.tempModel.updateOne(
+        { userId: new Types.ObjectId(userId) },
+        { date: today }
+      );
+
+      plannerId = newPlanner._id.toString();
+      temp.plannerStartTime = time0;
+    }
+
     const updatedTemp = await this.tempModel.updateOne(
       {
-        date: today,
         userId: new Types.ObjectId(userId),
       },
       {
@@ -281,12 +353,61 @@ export class SocketService {
     const startTime = this.convertDateNumberToString(temp.plannerStartTime);
     const endTime = this.convertDateNumberToString(currentTime);
     const todoTotal = currentTime - temp.plannerStartTime;
-    // 플래너 업데이트
-    const planner = await this.plannerModel.updateOne(
-      {
-        _id: new Types.ObjectId(plannerId),
+    const updatePlannerFields = {
+      $push: {
+        timelineList: {
+          startTime: { date: startTime.date, time: startTime.time },
+          endTime: { date: endTime.date, time: endTime.time },
+        },
       },
-      {
+      $inc: { totalTime: todoTotal },
+    };
+    await this.updatePlanner(plannerId, updatePlannerFields);
+
+    const maxTime = currentTime - temp.maxStartTime;
+    const updateStatisticFields = {
+      $inc: { totalTime: todoTotal },
+      $max: { maxTime },
+    };
+    await this.updateStatistic(userId, today, updateStatisticFields);
+
+    client.broadcast
+      .to(roomId)
+      .emit('updateUserState', { nickname, totalTime, state: 'stop' });
+  }
+
+  async change(client: Socket, payload: PayloadDto) {
+    const { currentTime, totalTime } = payload;
+    let plannerId = payload.plannerId;
+    const { roomId, nickname } = this.getSocketQuery(client);
+    const userId: string = client.data.user.sub;
+
+    const today = this.getFormattedDate();
+
+    const temp = await this.findTemp(userId);
+
+    if (
+      !temp ||
+      !temp.maxStartTime ||
+      temp.plannerId.toString() === plannerId
+    ) {
+      console.log('정지상태에서 할 일 변경 or 할 일 중복 선택');
+      return;
+    }
+
+    await this.splitTimeIntoIntervals(
+      userId,
+      temp.plannerStartTime,
+      currentTime
+    );
+
+    if (today !== temp.date) {
+      const time0 = this.getStartOfDayTimestamp(currentTime);
+
+      const startTime = this.convertDateNumberToString(temp.plannerStartTime);
+      const endTime = this.convertDateNumberToString(time0);
+      const todoTotal = time0 - temp.plannerStartTime;
+      const updatePlannerFields = {
         $push: {
           timelineList: {
             startTime: { date: startTime.date, time: startTime.time },
@@ -294,61 +415,31 @@ export class SocketService {
           },
         },
         $inc: { totalTime: todoTotal },
-      }
-    );
+      };
+      const planner = await this.updatePlanner(plannerId, updatePlannerFields);
 
-    if (planner.modifiedCount !== 1) {
-      throw new WsException('플래너 업데이트 에러');
-    }
-
-    const maxTime = currentTime - temp.maxStartTime;
-    // statistics 업데이트
-    const statistic = await this.statisticModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
+      const newPlanner = await this.plannerModel.create({
+        todo: planner.todo,
         date: today,
-      },
-      {
+        userId: new Types.ObjectId(userId),
+      });
+
+      const updateStatisticFields = {
         $inc: { totalTime: todoTotal },
-        $max: { maxTime },
-      },
-      { upsert: true }
-    );
+      };
+      await this.updateStatistic(userId, temp.date, updateStatisticFields);
 
-    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
-      throw new WsException('통계 업데이트 에러');
-    }
+      await this.tempModel.updateOne(
+        { userId: new Types.ObjectId(userId) },
+        { date: today }
+      );
 
-    client.broadcast
-      .to(roomId)
-      .emit('updateUserState', { nickname, totalTime, state: 'stop' });
-  }
-
-  // 작업 필요
-  async change(client: Socket, payload: PayloadDto) {
-    const { plannerId, currentTime, totalTime } = payload;
-    const { roomId, nickname } = this.getSocketQuery(client);
-    const userId: string = client.data.user.sub;
-
-    const today = this.getFormattedDate();
-
-    const temp = await this.tempModel.findOne({
-      date: today,
-      userId: new Types.ObjectId(userId),
-    });
-
-    if (
-      !temp ||
-      !temp.maxStartTime ||
-      temp.plannerId.toString() === plannerId
-    ) {
-      console.log('정지상태에서 할 일 변경');
-      return;
+      plannerId = newPlanner._id.toString();
+      temp.plannerStartTime = time0;
     }
 
     const updatedTemp = await this.tempModel.updateOne(
       {
-        date: today,
         userId: new Types.ObjectId(userId),
       },
       {
@@ -364,67 +455,78 @@ export class SocketService {
     const startTime = this.convertDateNumberToString(temp.plannerStartTime);
     const endTime = this.convertDateNumberToString(currentTime);
     const todoTotal = currentTime - temp.plannerStartTime;
-    // 플래너 업데이트
-    const planner = await this.plannerModel.updateOne(
-      {
-        _id: new Types.ObjectId(plannerId),
-      },
-      {
-        $push: {
-          timelineList: {
-            startTime: { date: startTime.date, time: startTime.time },
-            endTime: { date: endTime.date, time: endTime.time },
-          },
+    const updatePlannerFields = {
+      $push: {
+        timelineList: {
+          startTime: { date: startTime.date, time: startTime.time },
+          endTime: { date: endTime.date, time: endTime.time },
         },
-        $inc: { totalTime: todoTotal },
-      }
-    );
-
-    if (planner.modifiedCount !== 1) {
-      throw new WsException('플래너 업데이트 에러');
-    }
-
-    // statistics 업데이트
-    const statistic = await this.statisticModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-        date: today,
       },
-      {
-        $inc: { totalTime: todoTotal },
-      },
-      { upsert: true }
-    );
+      $inc: { totalTime: todoTotal },
+    };
+    await this.updatePlanner(plannerId, updatePlannerFields);
 
-    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
-      throw new WsException('통계 업데이트 에러');
-    }
+    const updateStatisticFields = {
+      $inc: { totalTime: todoTotal },
+    };
+    await this.updateStatistic(userId, today, updateStatisticFields);
 
     client.broadcast
       .to(roomId)
       .emit('updateUserState', { nickname, totalTime, state: 'change' });
   }
 
-  // 작업 필요
   async update(client: Socket, payload: PayloadDto) {
-    const { plannerId, currentTime } = payload;
+    const { currentTime } = payload;
+    let plannerId = payload.plannerId;
     const userId: string = client.data.user.sub;
 
     const today = this.getFormattedDate();
 
-    const temp = await this.tempModel.findOne({
-      date: today,
-      userId: new Types.ObjectId(userId),
-    });
+    const temp = await this.findTemp(userId);
 
     if (!temp) {
       console.log('데이터 업데이트 에러');
       return;
     }
 
+    await this.splitTimeIntoIntervals(
+      userId,
+      temp.plannerStartTime,
+      currentTime
+    );
+
+    if (today !== temp.date) {
+      const time0 = this.getStartOfDayTimestamp(currentTime);
+
+      const todoTotal = time0 - temp.plannerStartTime;
+      const updatePlannerFields = {
+        $inc: { totalTime: todoTotal },
+      };
+      const planner = await this.updatePlanner(plannerId, updatePlannerFields);
+
+      const newPlanner = await this.plannerModel.create({
+        todo: planner.todo,
+        date: today,
+        userId: new Types.ObjectId(userId),
+      });
+
+      const updateStatisticFields = {
+        $inc: { totalTime: todoTotal },
+      };
+      await this.updateStatistic(userId, temp.date, updateStatisticFields);
+
+      await this.tempModel.updateOne(
+        { userId: new Types.ObjectId(userId) },
+        { date: today }
+      );
+
+      plannerId = newPlanner._id.toString();
+      temp.plannerStartTime = time0;
+    }
+
     const updatedTemp = await this.tempModel.updateOne(
       {
-        date: today,
         userId: new Types.ObjectId(userId),
       },
       {
@@ -438,35 +540,15 @@ export class SocketService {
     }
 
     const todoTotal = currentTime - temp.plannerStartTime;
-    // 플래너 업데이트
-    const planner = await this.plannerModel.updateOne(
-      {
-        _id: new Types.ObjectId(plannerId),
-      },
-      {
-        $inc: { totalTime: todoTotal },
-      }
-    );
+    const updatePlannerFields = {
+      $inc: { totalTime: todoTotal },
+    };
+    await this.updatePlanner(plannerId, updatePlannerFields);
 
-    if (planner.modifiedCount !== 1) {
-      throw new WsException('플래너 업데이트 에러');
-    }
-
-    // statistics 업데이트
-    const statistic = await this.statisticModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-        date: today,
-      },
-      {
-        $inc: { totalTime: todoTotal },
-      },
-      { upsert: true }
-    );
-
-    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
-      throw new WsException('통계 업데이트 에러');
-    }
+    const updateStatisticFields = {
+      $inc: { totalTime: todoTotal },
+    };
+    await this.updateStatistic(userId, today, updateStatisticFields);
 
     client.emit('responseUpdateData', { sucess: true });
   }
@@ -481,6 +563,7 @@ export class SocketService {
       console.log('플래너를 불러올 수 없습니다.');
       throw new WsException('플래너를 불러올 수 없습니다.');
     }
+
     const planner = await this.plannerModel.find(
       { date, userId: new Types.ObjectId(userId) },
       { todo: true, isComplete: true, date: true, totalTime: true }
@@ -593,5 +676,127 @@ export class SocketService {
     const date = dateTypeDate.toLocaleString('en-CA', { hour12: false });
     const array = date.split(', ');
     return { date: array[0], time: array[1] };
+  }
+
+  getStartOfDayTimestamp(currentTime: number): number {
+    const date = new Date(currentTime);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+  }
+
+  async findTemp(userId: string): Promise<Temp> {
+    return await this.tempModel.findOne({ userId: new Types.ObjectId(userId) });
+  }
+
+  async updateStatistic(
+    userId: string,
+    date: string,
+    updateFields: Record<string, any>
+  ): Promise<UpdateWriteOpResult> {
+    const statistic = await this.statisticModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        date: date,
+      },
+      updateFields,
+      { upsert: true }
+    );
+
+    if (!(statistic.modifiedCount === 1 || statistic.upsertedCount === 1)) {
+      throw new WsException('통계 업데이트 에러');
+    }
+
+    return statistic;
+  }
+
+  async updatePlanner(
+    plannerId: Types.ObjectId | string,
+    updateFields: Record<string, any>
+  ): Promise<Planner> {
+    let _id: Types.ObjectId;
+    if (typeof plannerId === 'string') {
+      _id = new Types.ObjectId(plannerId);
+    } else {
+      _id = plannerId;
+    }
+    const planner = await this.plannerModel.findOneAndUpdate(
+      {
+        _id,
+      },
+      updateFields,
+      { new: true }
+    );
+
+    if (!planner) {
+      throw new WsException('플래너 업데이트 에러');
+    }
+
+    return planner;
+  }
+
+  async splitTimeIntoIntervals(
+    userId: string,
+    startTime: number,
+    endTime: number
+  ): Promise<void> {
+    const intervals = [];
+
+    const fixedPoints = [0, 6, 12, 18];
+
+    const currentStart = new Date(startTime);
+    currentStart.setHours(0, 0, 0, 0);
+
+    while (startTime < endTime) {
+      const currentDateStr = currentStart.toLocaleDateString('en-CA');
+      let night = 0,
+        morning = 0,
+        afternoon = 0,
+        evening = 0;
+
+      for (let i = 0; i < fixedPoints.length; i++) {
+        const intervalStart = new Date(currentStart);
+        intervalStart.setHours(fixedPoints[i], 0, 0, 0);
+
+        let intervalEnd = new Date(intervalStart);
+        intervalEnd.setHours(fixedPoints[i] + 6, 0, 0, 0);
+
+        if (intervalEnd.getTime() > endTime) {
+          intervalEnd = new Date(endTime);
+        }
+
+        if (
+          intervalStart.getTime() < endTime &&
+          intervalEnd.getTime() > startTime
+        ) {
+          const actualStart = Math.max(intervalStart.getTime(), startTime);
+          const actualEnd = Math.min(intervalEnd.getTime(), endTime);
+          const milliseconds = actualEnd - actualStart;
+
+          if (i === 0) night += milliseconds;
+          else if (i === 1) morning += milliseconds;
+          else if (i === 2) afternoon += milliseconds;
+          else if (i === 3) evening += milliseconds;
+        }
+      }
+
+      intervals.push({
+        date: currentDateStr,
+        night: night,
+        morning: morning,
+        afternoon: afternoon,
+        evening: evening,
+      });
+
+      currentStart.setDate(currentStart.getDate() + 1);
+      startTime = currentStart.getTime();
+    }
+
+    intervals.forEach(async (value) => {
+      const { date, ...etc } = value;
+      const updateStatisticFields = {
+        $inc: etc,
+      };
+      await this.updateStatistic(userId, date, updateStatisticFields);
+    });
   }
 }

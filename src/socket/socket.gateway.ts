@@ -120,56 +120,52 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('responseChat', { success: true });
   }
 
-  // 작업 필요
   @SubscribeMessage('start')
   async start(
     @MessageBody() payload: PayloadDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
-      this.socketService.start(client, payload);
+      await this.socketService.start(client, payload);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
     }
   }
 
-  // 작업 필요
   @SubscribeMessage('stop')
   async stop(
     @MessageBody() payload: PayloadDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
-      this.socketService.stop(client, payload);
+      await this.socketService.stop(client, payload);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
     }
   }
 
-  // 작업 필요
   @SubscribeMessage('change')
   async change(
     @MessageBody() payload: PayloadDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
-      this.socketService.change(client, payload);
+      await this.socketService.change(client, payload);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
     }
   }
 
-  // 작업 필요
   @SubscribeMessage('update')
   async update(
     @MessageBody() payload: PayloadDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
-      this.socketService.update(client, payload);
+      await this.socketService.update(client, payload);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
@@ -189,7 +185,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.to(roomId).emit('responseGetPlanner', planner);
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 
@@ -204,7 +200,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.to(roomId).emit('responseCreateTodo', planner);
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 
@@ -220,7 +216,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.to(roomId).emit('responseUpdatePlanner', planner);
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 }

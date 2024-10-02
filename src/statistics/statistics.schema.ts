@@ -16,7 +16,7 @@ export class Statistic {
   restTime: number;
 
   @Prop({ default: 0 })
-  mornning: number;
+  morning: number;
 
   @Prop({ default: 0 })
   afternoon: number;
