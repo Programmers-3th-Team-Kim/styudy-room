@@ -53,13 +53,7 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Res() res) {
-    res.cookie('refreshToken', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0,
-    });
-
+    res.clearCookie('refreshToken');
     return res.status(200).json({ message: '로그아웃 성공' });
   }
 
