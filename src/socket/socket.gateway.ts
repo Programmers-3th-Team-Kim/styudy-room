@@ -64,7 +64,8 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      // client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 
@@ -123,6 +124,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       imageUrl,
     };
     console.log(chatData);
+    // client.emit('receiveChat', chatData);
     client.broadcast.to(roomId).emit('receiveChat', chatData);
     client.emit('responseChat', { success: true });
   }
@@ -161,10 +163,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const planner = await this.socketService.getPlanner(client, date);
-      client.to(roomId).emit('responseGetPlanner', planner);
+      // client.to(roomId).emit('responseGetPlanner', planner);
+      client.emit('responseGetPlanner', planner);
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      // client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 
@@ -176,10 +180,13 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { roomId } = this.socketService.getSocketQuery(client);
     try {
       const planner = await this.socketService.createPlanner(payload, client);
-      client.to(roomId).emit('responseCreateTodo', planner);
+      console.log(planner);
+      // client.to(roomId).emit('responseCreateTodo', planner);
+      client.emit('responseCreateTodo', planner);
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      // client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 
@@ -192,10 +199,13 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const planner = await this.socketService.modifyPlanner(payload);
-      client.to(roomId).emit('responseUpdatePlanner', planner);
+      // client.to(roomId).emit('responseUpdatePlanner', planner);
+      console.log(planner);
+      client.emit('responseUpdatePlanner', planner);
     } catch (error) {
       console.log(error);
-      client.to(roomId).emit('error', { error: error.message });
+      // client.to(roomId).emit('error', { error: error.message });
+      client.emit('error', { error: error.message });
     }
   }
 }

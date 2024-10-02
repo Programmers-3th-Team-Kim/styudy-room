@@ -29,7 +29,7 @@ export class Planner {
   @Prop({ default: [] })
   repeatDays: string[];
 
-  @Prop({ default: 0 })
+  @Prop({ default: 1 })
   repeatWeeks: number;
 
   @Prop({ default: false })
