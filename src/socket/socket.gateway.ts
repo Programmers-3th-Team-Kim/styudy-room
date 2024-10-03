@@ -10,16 +10,13 @@ import {
 import { SocketService } from './socket.service';
 import { Socket, Server } from 'socket.io';
 import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
-import {
-  PayloadDto,
-  ResponseUserInfoDTO,
-  SendChatDto,
-} from './dto/clientToServer.dto';
+import { ChatDto, PayloadDto, SendChatDto } from './dto/chatAndInteraction.dto';
 import {
   CreatePlannerDto,
   getPlannerDto,
   ModifyPlanner,
 } from './dto/planner.dto';
+import { ResponseUserInfoDTO } from './dto/joinAndLeave.dto';
 
 @WebSocketGateway({
   namespace: '/rooms',
@@ -110,13 +107,13 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { message } = payload;
     const { nickname, roomId, imageUrl } =
       this.socketService.getSocketQuery(client);
-    const chatData = {
+    const chat: ChatDto = {
       time: this.socketService.getFormmatedTime(),
       message,
       nickname,
       imageUrl,
     };
-    client.broadcast.to(roomId).emit('receiveChat', chatData);
+    client.broadcast.to(roomId).emit('receiveChat', chat);
     client.emit('responseChat', { success: true });
   }
 

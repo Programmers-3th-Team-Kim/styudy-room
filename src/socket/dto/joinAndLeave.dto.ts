@@ -1,6 +1,6 @@
 import { SPlannerDto } from './planner.dto';
 
-export class RoomAndMyInfo {
+export class RoomAndMyInfoDto {
   title: string;
   notice: string;
   password: string;
@@ -9,4 +9,15 @@ export class RoomAndMyInfo {
   currentMember: string[];
   planner: SPlannerDto[];
   totalTime: number;
+}
+
+export class ResponseUserInfoDTO {
+  timer: number;
+  state: 'start' | 'stop';
+  socketId: string;
+}
+
+export class noticeDto {
+  message: string;
+  time: string;
 }

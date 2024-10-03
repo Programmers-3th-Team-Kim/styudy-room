@@ -1,24 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { WsException } from '@nestjs/websockets';
-import { Model, Types, UpdateWriteOpResult } from 'mongoose';
+import {
+  FilterQuery,
+  Model,
+  Types,
+  UpdateQuery,
+  UpdateWriteOpResult,
+} from 'mongoose';
 import { Server, Socket } from 'socket.io';
 import { Planner } from 'src/planners/planners.schema';
 import { Room } from 'src/rooms/rooms.schema';
 import { Statistic } from 'src/statistics/statistics.schema';
 import { User } from 'src/users/users.schema';
-import { PayloadDto } from './dto/clientToServer.dto';
-import {
-  convertDateNumberToStringDto,
-  SocketQueryDto,
-} from './dto/serverToClient.dto';
+import { PayloadDto } from './dto/chatAndInteraction.dto';
 import {
   CreatePlannerDto,
   ModifyPlanner,
   SPlannerDto,
 } from './dto/planner.dto';
 import { Temp } from './temps.schema';
-import { RoomAndMyInfo } from './dto/joinRoom.dto';
+import { noticeDto, RoomAndMyInfoDto } from './dto/joinAndLeave.dto';
+import {
+  RoomManagerAndMembersToNicknameDto,
+  SocketQueryDto,
+  SplitTimeIntoIntervalsDto,
+} from './dto/util.dto';
 
 @Injectable()
 export class SocketService {
@@ -30,20 +37,20 @@ export class SocketService {
     @InjectModel(Temp.name) private tempModel: Model<Temp>
   ) {}
 
-  joinChat(server: Server, roomId: string, nickname: string) {
-    const noticeData = {
+  joinChat(server: Server, roomId: string, nickname: string): void {
+    const notice: noticeDto = {
       message: `${nickname}님께서 입장하셨습니다.`,
       time: this.getFormmatedTime(),
     };
-    server.to(roomId).emit('notice', noticeData);
+    server.to(roomId).emit('notice', notice);
   }
 
-  leaveChat(server: Server, roomId: string, nickname: string) {
-    const noticeData = {
+  leaveChat(server: Server, roomId: string, nickname: string): void {
+    const notice: noticeDto = {
       message: `${nickname}님께서 퇴장하셨습니다.`,
       time: this.getFormmatedTime(),
     };
-    server.to(roomId).emit('notice', noticeData);
+    server.to(roomId).emit('notice', notice);
   }
 
   async joinRoom(client: Socket, roomId: string): Promise<Room> {
@@ -65,7 +72,10 @@ export class SocketService {
     return updatedRoom;
   }
 
-  async getRoomAndMyInfo(client: Socket, room: any): Promise<RoomAndMyInfo> {
+  async getRoomAndMyInfo(
+    client: Socket,
+    room: Room
+  ): Promise<RoomAndMyInfoDto> {
     const userId: string = client.data.user.sub;
     const { roomManager, currentMember } =
       await this.getRoomManagerAndMembersToNickname(room);
@@ -80,7 +90,7 @@ export class SocketService {
 
     const { totalTime = 0 } = statistic || {};
 
-    const allInfo: RoomAndMyInfo = {
+    const allInfo: RoomAndMyInfoDto = {
       title: room.title,
       notice: room.notice,
       password: room.password,
@@ -97,8 +107,6 @@ export class SocketService {
   async save(client: Socket, currentTime: number) {
     const userId: string = client.data.user.sub;
 
-    const today = this.getFormattedDate();
-
     const temp = await this.findTemp(userId);
 
     await this.tempModel.deleteMany({ userId: new Types.ObjectId(userId) });
@@ -108,75 +116,36 @@ export class SocketService {
       return;
     }
 
-    await this.splitTimeIntoIntervals(
-      userId,
+    const results = this.splitTimeIntoIntervals(
       temp.plannerStartTime,
       currentTime
     );
 
-    if (today !== temp.date) {
-      const time0 = this.getStartOfDayTimestamp(currentTime);
+    const planner = await this.plannerModel.findById(temp.plannerId);
 
-      const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-      const endTime = this.convertDateNumberToString(time0);
-      const todoTotal = time0 - temp.plannerStartTime;
-      const updatePlannerFields = {
-        $push: {
-          timelineList: {
-            startTime: { date: startTime.date, time: startTime.time },
-            endTime: { date: endTime.date, time: endTime.time },
-          },
-        },
-        $inc: { totalTime: todoTotal },
-      };
-      const planner = await this.updatePlanner(
-        temp.plannerId,
-        updatePlannerFields
-      );
+    const today = this.getFormattedDate();
 
-      const newPlanner = await this.plannerModel.create({
-        todo: planner.todo,
-        date: today,
-        userId: new Types.ObjectId(userId),
+    results.forEach(async (v) => {
+      const { date, totalTime, timelineList, ...etc } = v;
+      const filter =
+        planner.date === date
+          ? { _id: temp.plannerId }
+          : { todo: planner.todo, date, userId: new Types.ObjectId(userId) };
+      const maxTime = date === today ? currentTime - temp.maxStartTime : 0;
+
+      await this.updatePlanner(filter, {
+        $push: { timelineList },
+        $inc: { totalTime },
       });
 
-      const updateStatisticFields = {
-        $inc: { totalTime: todoTotal },
-      };
-      await this.updateStatistic(userId, temp.date, updateStatisticFields);
-
-      await this.tempModel.updateOne(
-        { userId: new Types.ObjectId(userId) },
-        { date: today }
-      );
-
-      temp.plannerId = newPlanner._id;
-      temp.plannerStartTime = time0;
-    }
-
-    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-    const endTime = this.convertDateNumberToString(currentTime);
-    const todoTotal = currentTime - temp.plannerStartTime;
-    const updatePlannerFields = {
-      $push: {
-        timelineList: {
-          startTime: { date: startTime.date, time: startTime.time },
-          endTime: { date: endTime.date, time: endTime.time },
-        },
-      },
-      $inc: { totalTime: todoTotal },
-    };
-    await this.updatePlanner(temp.plannerId, updatePlannerFields);
-
-    const maxTime = currentTime - temp.maxStartTime;
-    const updateStatisticFields = {
-      $inc: { totalTime: todoTotal },
-      $max: { maxTime },
-    };
-    await this.updateStatistic(userId, today, updateStatisticFields);
+      await this.updateStatistic(userId, date, {
+        $max: { maxTime },
+        $inc: { totalTime, ...etc },
+      });
+    });
   }
 
-  async leaveRoom(client: Socket, roomId: string) {
+  async leaveRoom(client: Socket, roomId: string): Promise<Room> {
     const userId: string = client.data.user.sub;
 
     const roomExists = await this.roomModel.findById(roomId);
@@ -201,12 +170,9 @@ export class SocketService {
   }
 
   async start(client: Socket, payload: PayloadDto) {
-    const { currentTime, totalTime } = payload;
-    let plannerId = payload.plannerId;
+    const { plannerId, currentTime, totalTime } = payload;
     const userId: string = client.data.user.sub;
     const { roomId, nickname } = this.getSocketQuery(client);
-
-    const today = this.getFormattedDate();
 
     const temp = await this.findTemp(userId);
 
@@ -216,57 +182,27 @@ export class SocketService {
         return;
       }
 
-      if (today !== temp.date) {
-        const time0 = this.getStartOfDayTimestamp(currentTime);
+      const results = this.splitTimeIntoIntervals(
+        temp.restStartTime,
+        currentTime
+      );
 
-        const planner = await this.plannerModel.findById(plannerId);
-
-        const newPlanner = await this.plannerModel.create({
-          todo: planner.todo,
-          date: today,
-          userId: new Types.ObjectId(userId),
+      results.forEach(async (v: any) => {
+        const { date, totalTime } = v;
+        await this.updateStatistic(userId, date, {
+          $inc: { restTime: totalTime },
         });
-
-        const restTime = time0 - temp.restStartTime;
-        const updateStatisticFields = {
-          $inc: { restTime },
-        };
-        await this.updateStatistic(userId, temp.date, updateStatisticFields);
-
-        await this.tempModel.updateOne(
-          { userId: new Types.ObjectId(userId) },
-          { date: today }
-        );
-
-        plannerId = newPlanner._id.toString();
-        temp.restStartTime = time0;
-      }
-
-      const restTime = currentTime - temp.restStartTime;
-      const updateStatisticFields = {
-        $inc: { restTime },
-      };
-      await this.updateStatistic(userId, today, updateStatisticFields);
+      });
     }
 
-    const updatedtemp = await this.tempModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-      },
-      {
-        plannerId: new Types.ObjectId(plannerId),
-        maxStartTime: currentTime,
-        plannerStartTime: currentTime,
-        restStartTime: 0,
-      },
-      {
-        upsert: true,
-      }
-    );
+    const today = this.getFormattedDate();
 
-    if (!updatedtemp) {
-      throw new WsException('시작 에러');
-    }
+    await this.updateTemp(userId, today, {
+      plannerId: new Types.ObjectId(plannerId),
+      maxStartTime: currentTime,
+      plannerStartTime: currentTime,
+      restStartTime: 0,
+    });
 
     client.broadcast
       .to(roomId)
@@ -275,11 +211,9 @@ export class SocketService {
 
   async stop(client: Socket, payload: PayloadDto) {
     const { currentTime, totalTime } = payload;
-    let plannerId = payload.plannerId;
+    const plannerId = payload.plannerId;
     const { roomId, nickname } = this.getSocketQuery(client);
     const userId: string = client.data.user.sub;
-
-    const today = this.getFormattedDate();
 
     const temp = await this.findTemp(userId);
 
@@ -292,84 +226,39 @@ export class SocketService {
       throw new WsException('일시정지 에러');
     }
 
-    await this.splitTimeIntoIntervals(
-      userId,
+    const results = this.splitTimeIntoIntervals(
       temp.plannerStartTime,
       currentTime
     );
 
-    if (today !== temp.date) {
-      const time0 = this.getStartOfDayTimestamp(currentTime);
+    const planner = await this.plannerModel.findById(plannerId);
 
-      const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-      const endTime = this.convertDateNumberToString(time0);
-      const todoTotal = time0 - temp.plannerStartTime;
-      const updatePlannerFields = {
-        $push: {
-          timelineList: {
-            startTime: { date: startTime.date, time: startTime.time },
-            endTime: { date: endTime.date, time: endTime.time },
-          },
-        },
-        $inc: { totalTime: todoTotal },
-      };
-      const planner = await this.updatePlanner(plannerId, updatePlannerFields);
+    const today = this.getFormattedDate();
 
-      const newPlanner = await this.plannerModel.create({
-        todo: planner.todo,
-        date: today,
-        userId: new Types.ObjectId(userId),
+    results.forEach(async (v) => {
+      const { date, totalTime, timelineList, ...etc } = v;
+      const filter =
+        planner.date === date
+          ? { _id: new Types.ObjectId(plannerId) }
+          : { todo: planner.todo, date, userId: new Types.ObjectId(userId) };
+      const maxTime = date === today ? currentTime - temp.maxStartTime : 0;
+
+      await this.updatePlanner(filter, {
+        $push: { timelineList },
+        $inc: { totalTime },
       });
 
-      const updateStatisticFields = {
-        $inc: { totalTime: todoTotal },
-      };
-      await this.updateStatistic(userId, temp.date, updateStatisticFields);
+      await this.updateStatistic(userId, date, {
+        $max: { maxTime },
+        $inc: { totalTime, ...etc },
+      });
+    });
 
-      await this.tempModel.updateOne(
-        { userId: new Types.ObjectId(userId) },
-        { date: today }
-      );
-
-      plannerId = newPlanner._id.toString();
-      temp.plannerStartTime = time0;
-    }
-
-    const updatedTemp = await this.tempModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-      },
-      {
-        plannerId: new Types.ObjectId(plannerId),
-        restStartTime: currentTime,
-        maxStartTime: 0,
-      }
-    );
-
-    if (updatedTemp.modifiedCount !== 1) {
-      throw new WsException('일시정지 에러');
-    }
-
-    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-    const endTime = this.convertDateNumberToString(currentTime);
-    const todoTotal = currentTime - temp.plannerStartTime;
-    const updatePlannerFields = {
-      $push: {
-        timelineList: {
-          startTime: { date: startTime.date, time: startTime.time },
-          endTime: { date: endTime.date, time: endTime.time },
-        },
-      },
-      $inc: { totalTime: todoTotal },
-    };
-    await this.updatePlanner(plannerId, updatePlannerFields);
-
-    const maxTime = currentTime - temp.maxStartTime;
-    const updateStatisticFields = {
-      $inc: { totalTime: todoTotal },
-      $max: { maxTime },
-    };
-    await this.updateStatistic(userId, today, updateStatisticFields);
+    await this.updateTemp(userId, today, {
+      plannerId: new Types.ObjectId(plannerId),
+      restStartTime: currentTime,
+      maxStartTime: 0,
+    });
 
     client.broadcast
       .to(roomId)
@@ -377,12 +266,9 @@ export class SocketService {
   }
 
   async change(client: Socket, payload: PayloadDto) {
-    const { currentTime, totalTime } = payload;
-    let plannerId = payload.plannerId;
+    const { plannerId, currentTime, totalTime } = payload;
     const { roomId, nickname } = this.getSocketQuery(client);
     const userId: string = client.data.user.sub;
-
-    const today = this.getFormattedDate();
 
     const temp = await this.findTemp(userId);
 
@@ -395,81 +281,35 @@ export class SocketService {
       return;
     }
 
-    await this.splitTimeIntoIntervals(
-      userId,
+    const results = this.splitTimeIntoIntervals(
       temp.plannerStartTime,
       currentTime
     );
 
-    if (today !== temp.date) {
-      const time0 = this.getStartOfDayTimestamp(currentTime);
+    const planner = await this.plannerModel.findById(plannerId);
+    const today = this.getFormattedDate();
 
-      const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-      const endTime = this.convertDateNumberToString(time0);
-      const todoTotal = time0 - temp.plannerStartTime;
-      const updatePlannerFields = {
-        $push: {
-          timelineList: {
-            startTime: { date: startTime.date, time: startTime.time },
-            endTime: { date: endTime.date, time: endTime.time },
-          },
-        },
-        $inc: { totalTime: todoTotal },
-      };
-      const planner = await this.updatePlanner(plannerId, updatePlannerFields);
+    results.forEach(async (v) => {
+      const { date, totalTime, timelineList, ...etc } = v;
+      const filter =
+        planner.date === date
+          ? { _id: new Types.ObjectId(plannerId) }
+          : { todo: planner.todo, date, userId: new Types.ObjectId(userId) };
 
-      const newPlanner = await this.plannerModel.create({
-        todo: planner.todo,
-        date: today,
-        userId: new Types.ObjectId(userId),
+      await this.updatePlanner(filter, {
+        $push: { timelineList },
+        $inc: { totalTime },
       });
 
-      const updateStatisticFields = {
-        $inc: { totalTime: todoTotal },
-      };
-      await this.updateStatistic(userId, temp.date, updateStatisticFields);
+      await this.updateStatistic(userId, date, {
+        $inc: { totalTime, ...etc },
+      });
+    });
 
-      await this.tempModel.updateOne(
-        { userId: new Types.ObjectId(userId) },
-        { date: today }
-      );
-
-      plannerId = newPlanner._id.toString();
-      temp.plannerStartTime = time0;
-    }
-
-    const updatedTemp = await this.tempModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-      },
-      {
-        plannerId: new Types.ObjectId(plannerId),
-        plannerStartTime: currentTime,
-      }
-    );
-
-    if (updatedTemp.modifiedCount !== 1) {
-      throw new WsException('할 일 변경 에러');
-    }
-
-    const startTime = this.convertDateNumberToString(temp.plannerStartTime);
-    const endTime = this.convertDateNumberToString(currentTime);
-    const todoTotal = currentTime - temp.plannerStartTime;
-    const updatePlannerFields = {
-      $push: {
-        timelineList: {
-          startTime: { date: startTime.date, time: startTime.time },
-          endTime: { date: endTime.date, time: endTime.time },
-        },
-      },
-      $inc: { totalTime: todoTotal },
-    };
-    await this.updatePlanner(plannerId, updatePlannerFields);
-
-    const updateStatisticFields = {
-      $inc: { totalTime: todoTotal },
-    };
-    await this.updateStatistic(userId, today, updateStatisticFields);
+    await this.updateTemp(userId, today, {
+      plannerId: new Types.ObjectId(plannerId),
+      plannerStartTime: currentTime,
+    });
 
     client.broadcast
       .to(roomId)
@@ -477,11 +317,8 @@ export class SocketService {
   }
 
   async update(client: Socket, payload: PayloadDto) {
-    const { currentTime } = payload;
-    let plannerId = payload.plannerId;
+    const { plannerId, currentTime } = payload;
     const userId: string = client.data.user.sub;
-
-    const today = this.getFormattedDate();
 
     const temp = await this.findTemp(userId);
 
@@ -490,67 +327,36 @@ export class SocketService {
       return;
     }
 
-    await this.splitTimeIntoIntervals(
-      userId,
+    const results = this.splitTimeIntoIntervals(
       temp.plannerStartTime,
       currentTime
     );
 
-    if (today !== temp.date) {
-      const time0 = this.getStartOfDayTimestamp(currentTime);
+    const planner = await this.plannerModel.findById(plannerId);
 
-      const todoTotal = time0 - temp.plannerStartTime;
-      const updatePlannerFields = {
-        $inc: { totalTime: todoTotal },
-      };
-      const planner = await this.updatePlanner(plannerId, updatePlannerFields);
+    results.forEach(async (v) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { date, totalTime, timelineList, ...etc } = v;
+      const filter =
+        planner.date === date
+          ? { _id: new Types.ObjectId(plannerId) }
+          : { todo: planner.todo, date, userId: new Types.ObjectId(userId) };
 
-      const newPlanner = await this.plannerModel.create({
-        todo: planner.todo,
-        date: today,
-        userId: new Types.ObjectId(userId),
+      await this.updatePlanner(filter, {
+        $inc: { totalTime },
       });
 
-      const updateStatisticFields = {
-        $inc: { totalTime: todoTotal },
-      };
-      await this.updateStatistic(userId, temp.date, updateStatisticFields);
+      await this.updateStatistic(userId, date, {
+        $inc: { totalTime, ...etc },
+      });
+    });
 
-      await this.tempModel.updateOne(
-        { userId: new Types.ObjectId(userId) },
-        { date: today }
-      );
+    const today = this.getFormattedDate();
 
-      plannerId = newPlanner._id.toString();
-      temp.plannerStartTime = time0;
-    }
-
-    const updatedTemp = await this.tempModel.updateOne(
-      {
-        userId: new Types.ObjectId(userId),
-      },
-      {
-        plannerId: new Types.ObjectId(plannerId),
-        plannerStartTime: currentTime,
-      }
-    );
-
-    if (updatedTemp.modifiedCount !== 1) {
-      throw new WsException('할 일 변경 에러');
-    }
-
-    const todoTotal = currentTime - temp.plannerStartTime;
-    const updatePlannerFields = {
-      $inc: { totalTime: todoTotal },
-    };
-    await this.updatePlanner(plannerId, updatePlannerFields);
-
-    const updateStatisticFields = {
-      $inc: { totalTime: todoTotal },
-    };
-    await this.updateStatistic(userId, today, updateStatisticFields);
-
-    client.emit('responseUpdateData', { sucess: true });
+    await this.updateTemp(userId, today, {
+      plannerId: new Types.ObjectId(plannerId),
+      plannerStartTime: currentTime,
+    });
   }
 
   async getPlanner(client: Socket, date: string): Promise<SPlannerDto[]> {
@@ -655,7 +461,9 @@ export class SocketService {
     return { roomId, nickname, imageUrl };
   }
 
-  async getRoomManagerAndMembersToNickname(room: any): Promise<any> {
+  async getRoomManagerAndMembersToNickname(
+    room: Room
+  ): Promise<RoomManagerAndMembersToNicknameDto> {
     let roomManager: string;
     const currentMember = await Promise.all(
       room.currentMember.map(async (oid) => {
@@ -671,19 +479,6 @@ export class SocketService {
     return { roomManager, currentMember };
   }
 
-  convertDateNumberToString(dateNum: number): convertDateNumberToStringDto {
-    const dateTypeDate = new Date(dateNum);
-    const date = dateTypeDate.toLocaleString('en-CA', { hour12: false });
-    const array = date.split(', ');
-    return { date: array[0], time: array[1] };
-  }
-
-  getStartOfDayTimestamp(currentTime: number): number {
-    const date = new Date(currentTime);
-    date.setHours(0, 0, 0, 0);
-    return date.getTime();
-  }
-
   async findTemp(userId: string): Promise<Temp> {
     return await this.tempModel.findOne({ userId: new Types.ObjectId(userId) });
   }
@@ -691,7 +486,7 @@ export class SocketService {
   async updateStatistic(
     userId: string,
     date: string,
-    updateFields: Record<string, any>
+    updateFields: UpdateQuery<Statistic>
   ): Promise<UpdateWriteOpResult> {
     const statistic = await this.statisticModel.updateOne(
       {
@@ -710,21 +505,16 @@ export class SocketService {
   }
 
   async updatePlanner(
-    plannerId: Types.ObjectId | string,
-    updateFields: Record<string, any>
+    filterFields: FilterQuery<Planner>,
+    updateFields: UpdateQuery<Planner>
   ): Promise<Planner> {
-    let _id: Types.ObjectId;
-    if (typeof plannerId === 'string') {
-      _id = new Types.ObjectId(plannerId);
-    } else {
-      _id = plannerId;
-    }
     const planner = await this.plannerModel.findOneAndUpdate(
-      {
-        _id,
-      },
+      filterFields,
       updateFields,
-      { new: true }
+      {
+        new: true,
+        upsert: true,
+      }
     );
 
     if (!planner) {
@@ -734,17 +524,41 @@ export class SocketService {
     return planner;
   }
 
-  async splitTimeIntoIntervals(
+  async updateTemp(
     userId: string,
+    today: string,
+    updateFields: UpdateQuery<Temp>
+  ): Promise<void> {
+    const updatedtemp = await this.tempModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+      },
+      {
+        ...updateFields,
+        date: today,
+      },
+      {
+        upsert: true,
+      }
+    );
+
+    if (!updatedtemp) {
+      throw new WsException('데이터 업데이트 에러');
+    }
+  }
+
+  splitTimeIntoIntervals(
     startTime: number,
     endTime: number
-  ): Promise<void> {
+  ): SplitTimeIntoIntervalsDto[] {
     const intervals = [];
 
     const fixedPoints = [0, 6, 12, 18];
 
     const currentStart = new Date(startTime);
     currentStart.setHours(0, 0, 0, 0);
+
+    const formatTime = (date: Date) => date.toTimeString().split(' ')[0];
 
     while (startTime < endTime) {
       const currentDateStr = currentStart.toLocaleDateString('en-CA');
@@ -785,18 +599,23 @@ export class SocketService {
         morning: morning,
         afternoon: afternoon,
         evening: evening,
+        totalTime: night + morning + afternoon + evening,
+        timelineList: {
+          startTime: {
+            date: currentDateStr,
+            time: formatTime(new Date(startTime)),
+          },
+          endTime: {
+            date: currentDateStr,
+            time: formatTime(new Date(endTime)),
+          },
+        },
       });
 
       currentStart.setDate(currentStart.getDate() + 1);
       startTime = currentStart.getTime();
     }
 
-    intervals.forEach(async (value) => {
-      const { date, ...etc } = value;
-      const updateStatisticFields = {
-        $inc: etc,
-      };
-      await this.updateStatistic(userId, date, updateStatisticFields);
-    });
+    return intervals;
   }
 }
