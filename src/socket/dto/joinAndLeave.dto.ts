@@ -12,7 +12,7 @@ export class RoomAndMyInfoDto {
 }
 
 export class ResponseUserInfoDTO {
-  timer: number;
+  totalTime: number;
   state: 'start' | 'stop';
   socketId: string;
 }

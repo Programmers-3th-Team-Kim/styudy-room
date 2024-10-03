@@ -194,7 +194,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { roomId } = this.socketService.getSocketQuery(client);
     try {
       const planner = await this.socketService.createPlanner(payload, client);
-      client.to(roomId).emit('responseCreateTodo', planner);
+      client.to(roomId).emit('responseCreatePlanner', planner);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
