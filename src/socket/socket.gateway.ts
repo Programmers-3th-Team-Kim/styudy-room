@@ -210,7 +210,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const planner = await this.socketService.modifyPlanner(payload);
-      client.to(roomId).emit('responseUpdatePlanner', planner);
+      client.to(roomId).emit('responseModifyPlanner', planner);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
