@@ -1,4 +1,11 @@
-import { Controller, Req, UseGuards, Patch, Body } from '@nestjs/common';
+import {
+  Controller,
+  Req,
+  UseGuards,
+  Patch,
+  Body,
+  Delete,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { UpdateUserProfileDto } from './dto/updateUserProfile.dto';
@@ -17,5 +24,12 @@ export class UsersController {
     const userId = req.user.id;
     console.log(userId);
     return this.usersService.updateProfile(userId, updateUserProfileDto);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('me')
+  async deleteUserAccount(@Req() req) {
+    const userId = req.user.id;
+    return await this.usersService.deleteAccount(userId);
   }
 }

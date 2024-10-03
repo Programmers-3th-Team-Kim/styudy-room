@@ -36,4 +36,12 @@ export class UsersService {
 
     return user.save();
   }
+
+  async deleteAccount(id: string): Promise<void> {
+    const user = await this.userModel.findOneAndDelete({ id });
+
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+  }
 }
