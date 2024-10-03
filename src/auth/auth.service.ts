@@ -36,12 +36,6 @@ export class AuthService {
   }
 
   async signUp(createUserDto: CreateUserDto): Promise<void> {
-    const user = await this.usersService.findOne(createUserDto.id);
-
-    if (user) {
-      throw new ConflictException('이미 존재하는 사용자입니다.');
-    }
-
     const saltOrRounds = 10;
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
@@ -54,8 +48,15 @@ export class AuthService {
     });
   }
 
+  async checkDuplicate(field: string, value: string): Promise<void> {
+    const isDuplicate = await this.usersService.checkDuplicate(field, value);
+    if (isDuplicate) {
+      throw new ConflictException(`이미 사용 중인 ${field}입니다.`);
+    }
+  }
+
   async validateUser(id: string, password: string): Promise<User> {
-    const user = await this.usersService.findOne(id);
+    const user = await this.usersService.findOneById(id);
 
     if (!user) {
       throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
@@ -99,7 +100,7 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
-      const user = await this.usersService.findOne(payload.id);
+      const user = await this.usersService.findOneById(payload.id);
       if (!user) {
         throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
       }
@@ -130,7 +131,7 @@ export class AuthService {
   }
 
   async getUserInfo(userId: string) {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneById(userId);
 
     if (!user) {
       throw new UnauthorizedException('사용자를 찾을 수 없습니다.');

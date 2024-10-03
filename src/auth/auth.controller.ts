@@ -7,6 +7,7 @@ import {
   Req,
   Get,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
@@ -19,6 +20,14 @@ export class AuthController {
   @Post('signup')
   async signup(@Body() createUserDto: CreateUserDto) {
     return await this.authService.signUp(createUserDto);
+  }
+
+  @Get('check-duplicate')
+  async checkDuplicate(
+    @Query('field') field: string,
+    @Query('value') value: string
+  ) {
+    return await this.authService.checkDuplicate(field, value);
   }
 
   @Post('login')

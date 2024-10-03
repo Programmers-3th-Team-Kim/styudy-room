@@ -13,7 +13,12 @@ export class UsersService {
     return createdUser.save();
   }
 
-  async findOne(id: string): Promise<User | null> {
+  async checkDuplicate(field: string, value: string): Promise<boolean> {
+    const user = await this.userModel.findOne({ [field]: value }).exec();
+    return !!user;
+  }
+
+  async findOneById(id: string): Promise<User | null> {
     return this.userModel.findOne({ id }).exec();
   }
 }
