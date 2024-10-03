@@ -8,6 +8,7 @@ import { User, UserSchema } from './users/users.schema';
 import { RoomsModule } from './rooms/rooms.module';
 import { AuthModule } from './auth/auth.module';
 import { PlannersModule } from './planners/planners.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PlannersModule } from './planners/planners.module';
     RoomsModule,
     AuthModule,
     PlannersModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
