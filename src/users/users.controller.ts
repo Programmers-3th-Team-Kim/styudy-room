@@ -15,7 +15,7 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @UseGuards(AuthGuard('jwt'))
-  @Patch('profile')
+  @Patch('me')
   async updateUserProfile(
     @Req() req,
     @Body() updateUserProfileDto: UpdateUserProfileDto
