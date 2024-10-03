@@ -35,17 +35,18 @@ export class PlannersService {
           for (let i: number = 0; i < repeatWeeks; i++) {
             const selectedDay = this.mappingDays[day];
             const today = new Date();
-            const todayDate = today.getDay();
             const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
             const planId: Types.ObjectId = savedPlan._id as Types.ObjectId;
-            const dateOffset = ((selectedDay - todayDate + 7) % 7) + i * 7;
+            const standardDate = date.getDay();
+            const dateOffset = ((selectedDay - standardDate + 7) % 7) + i * 7;
 
             const selectedDate = new Date();
             selectedDate.setDate(date.getDate() + dateOffset);
-            const planDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+            const planDate = `${String(selectedDate.getFullYear())}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
-            if (todayString < planDate) {
+            const standardDateStr = `${String(date.getFullYear())}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}}`;
+            if (todayString < planDate && standardDateStr != planDate) {
               createDataNum += 1;
               console.log(
                 `데이터 생성, 할 일 날짜: ${planDate}, 오늘: ${todayString}`
@@ -211,7 +212,7 @@ export class PlannersService {
   async deletePlan(userId: string, plannerId: string): Promise<Planner> {
     const deletePlanQuery = await this.plannerModel
       .findByIdAndDelete({
-        id_: new Types.ObjectId(plannerId),
+        _id: new Types.ObjectId(plannerId),
         userId: new Types.ObjectId(userId),
       })
       .exec();
