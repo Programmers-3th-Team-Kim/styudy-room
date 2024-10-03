@@ -22,7 +22,7 @@ export class AuthService {
     const payload = { id: user.id, sub: user._id };
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: '60m', // 15m
+      expiresIn: '15m',
     });
   }
 

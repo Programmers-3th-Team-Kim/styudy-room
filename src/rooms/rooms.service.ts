@@ -33,20 +33,23 @@ export class RoomsService {
     const query: FilterQuery<Room> = {};
 
     if (search) {
-      query['$or'] = [
-        { title: { $regex: search, $options: 'i' } },
-        { tagList: { $in: [new RegExp(search, 'i')] } },
-      ];
+      const searchWords = search.split(' ');
+      query['$and'] = searchWords.map((word) => ({
+        $or: [
+          { title: { $regex: word, $options: 'i' } },
+          { tagList: { $in: [new RegExp(word, 'i')] } },
+        ],
+      }));
     }
 
-    if (typeof isPublic !== 'undefined') {
+    if (isPublic !== undefined) {
       query['isPublic'] = isPublic;
     }
 
-    if (typeof isPossible !== 'undefined') {
+    if (isPossible !== undefined) {
       query['$expr'] = isPossible
-        ? { $gt: ['$maxNum', '$currentNum'] }
-        : { $eq: ['$maxNum', '$currentNum'] };
+        ? { $gt: ['$maxNum', { $size: '$currentMember' }] }
+        : { $lte: ['$maxNum', { $size: '$currentMember' }] };
     }
 
     const rooms = await this.roomModel
