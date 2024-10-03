@@ -6,12 +6,10 @@ import {
   Res,
   Req,
   Get,
-  UseGuards,
   Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
-import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -64,12 +62,5 @@ export class AuthController {
   async logout(@Res() res) {
     res.clearCookie('refreshToken');
     return res.status(200).json({ message: '로그아웃 성공' });
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Get('me')
-  async getMe(@Req() req) {
-    const userInfo = await this.authService.getUserInfo(req.user.id);
-    return { user: userInfo };
   }
 }

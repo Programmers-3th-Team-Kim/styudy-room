@@ -20,9 +20,7 @@ export class UsersController {
     @Req() req,
     @Body() updateUserProfileDto: UpdateUserProfileDto
   ) {
-    console.log(req);
     const userId = req.user.id;
-    console.log(userId);
     return this.usersService.updateProfile(userId, updateUserProfileDto);
   }
 
