@@ -46,7 +46,7 @@ export class Planner {
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   userId: Types.ObjectId;
 
-  @Prop({ dafulat: [] })
+  @Prop({ default: [] })
   timelineList: StartEndTime[];
 }
 
