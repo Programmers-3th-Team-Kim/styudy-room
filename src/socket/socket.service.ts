@@ -16,7 +16,7 @@ import { User } from 'src/users/users.schema';
 import { PayloadDto } from './dto/chatAndInteraction.dto';
 import {
   CreatePlannerDto,
-  ModifyPlanner,
+  ModifyPlannerDto,
   SPlannerDto,
 } from './dto/planner.dto';
 import { Temp } from './temps.schema';
@@ -402,7 +402,7 @@ export class SocketService {
     return response;
   }
 
-  async modifyPlanner(payload: ModifyPlanner): Promise<SPlannerDto> {
+  async modifyPlanner(payload: ModifyPlannerDto): Promise<SPlannerDto> {
     const { plannerId, todo, isComplete } = payload;
 
     const updateFields: any = {};
@@ -553,12 +553,17 @@ export class SocketService {
   ): SplitTimeIntoIntervalsDto[] {
     const intervals = [];
 
-    const fixedPoints = [0, 6, 12, 18];
+    const fixedPoints = [0, 5, 12, 17, 22];
+    const endPoints = [5, 7, 5, 5, 2];
 
     const currentStart = new Date(startTime);
     currentStart.setHours(0, 0, 0, 0);
 
-    const formatTime = (date: Date) => date.toTimeString().split(' ')[0];
+    const formatTime = (date: Date) => {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
 
     while (startTime < endTime) {
       const currentDateStr = currentStart.toLocaleDateString('en-CA');
@@ -567,12 +572,16 @@ export class SocketService {
         afternoon = 0,
         evening = 0;
 
+      const actualEndTime = new Date(
+        Math.min(endTime, currentStart.getTime() + 24 * 60 * 60 * 1000 - 1)
+      );
+
       for (let i = 0; i < fixedPoints.length; i++) {
         const intervalStart = new Date(currentStart);
         intervalStart.setHours(fixedPoints[i], 0, 0, 0);
 
         let intervalEnd = new Date(intervalStart);
-        intervalEnd.setHours(fixedPoints[i] + 6, 0, 0, 0);
+        intervalEnd.setHours(fixedPoints[i] + endPoints[i], 0, 0, 0);
 
         if (intervalEnd.getTime() > endTime) {
           intervalEnd = new Date(endTime);
@@ -590,6 +599,7 @@ export class SocketService {
           else if (i === 1) morning += milliseconds;
           else if (i === 2) afternoon += milliseconds;
           else if (i === 3) evening += milliseconds;
+          else if (i === 4) night += milliseconds;
         }
       }
 
@@ -602,12 +612,12 @@ export class SocketService {
         totalTime: night + morning + afternoon + evening,
         timelineList: {
           startTime: {
-            date: currentDateStr,
+            date: new Date(startTime).toLocaleDateString('en-CA'),
             time: formatTime(new Date(startTime)),
           },
           endTime: {
-            date: currentDateStr,
-            time: formatTime(new Date(endTime)),
+            date: new Date(actualEndTime).toLocaleDateString('en-CA'),
+            time: formatTime(actualEndTime),
           },
         },
       });
