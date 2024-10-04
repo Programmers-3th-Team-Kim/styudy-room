@@ -13,10 +13,10 @@ import { SocketJwtAuthService } from 'src/auth/socketJwtAuth.service';
 import { ChatDto, PayloadDto, SendChatDto } from './dto/chatAndInteraction.dto';
 import {
   CreatePlannerDto,
-  getPlannerDto,
+  GetPlannerDto,
   ModifyPlannerDto,
 } from './dto/planner.dto';
-import { ResponseUserInfoDTO } from './dto/joinAndLeave.dto';
+import { ResponseUserInfoDto } from './dto/joinAndLeave.dto';
 
 @WebSocketGateway({
   namespace: '/rooms',
@@ -87,7 +87,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('responseUserInfo')
   responseUserInfo(
-    @MessageBody() payload: ResponseUserInfoDTO,
+    @MessageBody() payload: ResponseUserInfoDto,
     @ConnectedSocket() client: Socket
   ) {
     const { socketId, ...userState } = payload;
@@ -171,7 +171,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('getPlanner')
   async getPlanner(
-    @MessageBody() payload: getPlannerDto,
+    @MessageBody() payload: GetPlannerDto,
     @ConnectedSocket() client: Socket
   ) {
     const { date } = payload;

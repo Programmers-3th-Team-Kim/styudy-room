@@ -20,7 +20,7 @@ import {
   SPlannerDto,
 } from './dto/planner.dto';
 import { Temp } from './temps.schema';
-import { noticeDto, RoomAndMyInfoDto } from './dto/joinAndLeave.dto';
+import { NoticeDto, RoomAndMyInfoDto } from './dto/joinAndLeave.dto';
 import {
   RoomManagerAndMembersToNicknameDto,
   SocketQueryDto,
@@ -38,7 +38,7 @@ export class SocketService {
   ) {}
 
   joinChat(server: Server, roomId: string, nickname: string): void {
-    const notice: noticeDto = {
+    const notice: NoticeDto = {
       message: `${nickname}님께서 입장하셨습니다.`,
       time: this.getFormattedTime(),
     };
@@ -46,7 +46,7 @@ export class SocketService {
   }
 
   leaveChat(server: Server, roomId: string, nickname: string): void {
-    const notice: noticeDto = {
+    const notice: NoticeDto = {
       message: `${nickname}님께서 퇴장하셨습니다.`,
       time: this.getFormattedTime(),
     };
@@ -532,7 +532,7 @@ export class SocketService {
     today: string,
     updateFields: UpdateQuery<Temp>
   ): Promise<void> {
-    const updatedtemp = await this.tempModel.updateOne(
+    const updatedTemp = await this.tempModel.updateOne(
       {
         userId: new Types.ObjectId(userId),
       },
@@ -545,7 +545,7 @@ export class SocketService {
       }
     );
 
-    if (!updatedtemp) {
+    if (!updatedTemp) {
       throw new WsException('데이터 업데이트 에러');
     }
   }

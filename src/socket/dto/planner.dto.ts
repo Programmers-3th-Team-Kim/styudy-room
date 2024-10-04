@@ -8,7 +8,7 @@ export class SPlannerDto {
   totalTime: number;
 }
 
-export class getPlannerDto {
+export class GetPlannerDto {
   date: string;
 }
 

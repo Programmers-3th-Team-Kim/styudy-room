@@ -17,7 +17,7 @@ export class ResponseUserInfoDto {
   socketId: string;
 }
 
-export class noticeDto {
+export class NoticeDto {
   message: string;
   time: string;
 }
