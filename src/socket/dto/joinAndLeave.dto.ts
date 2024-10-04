@@ -11,7 +11,7 @@ export class RoomAndMyInfoDto {
   totalTime: number;
 }
 
-export class ResponseUserInfoDTO {
+export class ResponseUserInfoDto {
   totalTime: number;
   state: 'start' | 'stop';
   socketId: string;
