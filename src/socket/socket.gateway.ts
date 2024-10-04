@@ -14,7 +14,7 @@ import { ChatDto, PayloadDto, SendChatDto } from './dto/chatAndInteraction.dto';
 import {
   CreatePlannerDto,
   getPlannerDto,
-  ModifyPlanner,
+  ModifyPlannerDto,
 } from './dto/planner.dto';
 import { ResponseUserInfoDTO } from './dto/joinAndLeave.dto';
 
@@ -203,7 +203,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('modifyPlanner')
   async modifyPlanner(
-    @MessageBody() payload: ModifyPlanner,
+    @MessageBody() payload: ModifyPlannerDto,
     @ConnectedSocket() client: Socket
   ) {
     const { roomId } = this.socketService.getSocketQuery(client);

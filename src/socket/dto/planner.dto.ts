@@ -17,7 +17,7 @@ export class CreatePlannerDto {
   todo: string;
 }
 
-export class ModifyPlanner {
+export class ModifyPlannerDto {
   plannerId: string;
   todo: string;
   isComplete: boolean;
