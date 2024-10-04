@@ -2,11 +2,16 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
 export class StartEndTime {
-  startTime: string;
-  EndTime: string;
+  startTime: dateTime;
+  EndTime: dateTime;
 }
 
-@Schema({ collection: 'Planners' })
+export class dateTime {
+  date: string;
+  time: string;
+}
+
+@Schema({ collection: 'Planners', strict: 'throw', minimize: false })
 export class Planner {
   @Prop({ default: '' })
   subject: string;
@@ -23,13 +28,16 @@ export class Planner {
   @Prop({ default: '' })
   endTime: string;
 
+  @Prop({ default: 0 })
+  totalTime: number;
+
   @Prop({ default: [] })
   repeatDays: string[];
 
   @Prop({ default: 1 })
   repeatWeeks: number;
 
-  @Prop({ default: false, required: true })
+  @Prop({ default: false })
   isComplete: boolean;
 
   @Prop({ required: false })
@@ -38,7 +46,7 @@ export class Planner {
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   userId: Types.ObjectId;
 
-  @Prop({ type: [{ startTime: String, endTime: String }] })
+  @Prop({ default: [] })
   timelineList: StartEndTime[];
 }
 
