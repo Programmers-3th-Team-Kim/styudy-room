@@ -7,9 +7,12 @@ import {
   Req,
   Get,
   Query,
+  UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -62,5 +65,27 @@ export class AuthController {
   async logout(@Res() res) {
     res.clearCookie('refreshToken');
     return res.status(200).json({ message: '로그아웃 성공' });
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('verify-password')
+  async verifyPassword(
+    @Req() req,
+    @Body('currentPassword') currentPassword: string
+  ) {
+    const userId = req.user.id;
+    const isPasswordCorrect = await this.authService.verifyPassword(
+      userId,
+      currentPassword
+    );
+    return { isPasswordCorrect };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('change-password')
+  async changePassword(@Req() req, @Body('newPassword') newPassword: string) {
+    const userId = req.user.id;
+    await this.authService.changePassword(userId, newPassword);
+    return { message: '비밀번호가 성공적으로 변경되었습니다.' };
   }
 }
