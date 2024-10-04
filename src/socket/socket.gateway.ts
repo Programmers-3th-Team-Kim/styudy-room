@@ -175,11 +175,10 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket
   ) {
     const { date } = payload;
-    const { roomId } = this.socketService.getSocketQuery(client);
 
     try {
       const planner = await this.socketService.getPlanner(client, date);
-      client.to(roomId).emit('responseGetPlanner', planner);
+      client.emit('responseGetPlanner', planner);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
@@ -191,10 +190,9 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: CreatePlannerDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { roomId } = this.socketService.getSocketQuery(client);
     try {
       const planner = await this.socketService.createPlanner(payload, client);
-      client.to(roomId).emit('responseCreatePlanner', planner);
+      client.emit('responseCreatePlanner', planner);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
@@ -206,11 +204,9 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: ModifyPlannerDto,
     @ConnectedSocket() client: Socket
   ) {
-    const { roomId } = this.socketService.getSocketQuery(client);
-
     try {
       const planner = await this.socketService.modifyPlanner(payload);
-      client.to(roomId).emit('responseModifyPlanner', planner);
+      client.emit('responseModifyPlanner', planner);
     } catch (error) {
       console.log(error);
       client.emit('error', { error: error.message });
