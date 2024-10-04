@@ -108,7 +108,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { nickname, roomId, imageUrl } =
       this.socketService.getSocketQuery(client);
     const chat: ChatDto = {
-      time: this.socketService.getFormmatedTime(),
+      time: this.socketService.getFormattedTime(),
       message,
       nickname,
       imageUrl,

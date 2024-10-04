@@ -40,7 +40,7 @@ export class SocketService {
   joinChat(server: Server, roomId: string, nickname: string): void {
     const notice: noticeDto = {
       message: `${nickname}님께서 입장하셨습니다.`,
-      time: this.getFormmatedTime(),
+      time: this.getFormattedTime(),
     };
     server.to(roomId).emit('notice', notice);
   }
@@ -48,7 +48,7 @@ export class SocketService {
   leaveChat(server: Server, roomId: string, nickname: string): void {
     const notice: noticeDto = {
       message: `${nickname}님께서 퇴장하셨습니다.`,
-      time: this.getFormmatedTime(),
+      time: this.getFormattedTime(),
     };
     server.to(roomId).emit('notice', notice);
   }
@@ -241,7 +241,10 @@ export class SocketService {
         planner.date === date
           ? { _id: new Types.ObjectId(plannerId) }
           : { todo: planner.todo, date, userId: new Types.ObjectId(userId) };
-      const maxTime = date === today ? currentTime - temp.maxStartTime : 0;
+      const maxTime =
+        date === today
+          ? Math.floor((currentTime - temp.maxStartTime) / 1000)
+          : 0;
 
       await this.updatePlanner(filter, {
         $push: { timelineList },
@@ -446,7 +449,7 @@ export class SocketService {
       .replace(/\s/g, '');
   }
 
-  getFormmatedTime(): string {
+  getFormattedTime(): string {
     return new Date().toLocaleTimeString('ko-KR', {
       hour: '2-digit',
       minute: '2-digit',
@@ -593,7 +596,7 @@ export class SocketService {
         ) {
           const actualStart = Math.max(intervalStart.getTime(), startTime);
           const actualEnd = Math.min(intervalEnd.getTime(), endTime);
-          const milliseconds = actualEnd - actualStart;
+          const milliseconds = Math.floor((actualEnd - actualStart) / 1000);
 
           if (i === 0) night += milliseconds;
           else if (i === 1) morning += milliseconds;
