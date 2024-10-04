@@ -33,7 +33,6 @@ export class Planner {
   repeatWeeks: number;
 
   @Prop({ default: false })
-
   isComplete: boolean;
 
   @Prop({ required: false })

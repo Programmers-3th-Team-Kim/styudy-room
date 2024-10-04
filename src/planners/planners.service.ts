@@ -152,15 +152,16 @@ export class PlannersService {
 
     if (!parentObjectId) {
       await this.plannerModel
-        .findByIdAndUpdate(rootId, plannerDto, { new: true })
+        .findByIdAndUpdate(rootId, updatePlannerDto, { new: true })
         .exec();
+      console.log(`단일 할 일 업데이트`);
     } else {
       rootId = new Types.ObjectId(parentObjectId);
       console.log(rootId);
 
       // 할 일의 날짜가 오늘
       if (todayString === date) {
-        console.log('업데이트...');
+        console.log(`${date} : 할 일 업데이트`);
         await this.plannerModel
           .findByIdAndUpdate(
             rootId,

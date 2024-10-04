@@ -38,6 +38,7 @@ export class PlannersController {
     @Query('date') date: string
   ): Promise<Planner[]> {
     const userId = req.user.userId;
+    console.log(userId);
     return this.plannersService.showAll(userId, date);
   }
 
