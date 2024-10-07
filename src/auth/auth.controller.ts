@@ -13,6 +13,7 @@ import {
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { ChangePasswordDto } from './dto/changePassword.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -83,9 +84,15 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('change-password')
-  async changePassword(@Req() req, @Body('newPassword') newPassword: string) {
+  async changePassword(
+    @Req() req,
+    @Body() changePasswordDto: ChangePasswordDto
+  ) {
     const userId = req.user.id;
-    await this.authService.changePassword(userId, newPassword);
+    await this.authService.changePassword(
+      userId,
+      changePasswordDto.newPassword
+    );
     return { message: '비밀번호가 성공적으로 변경되었습니다.' };
   }
 }
