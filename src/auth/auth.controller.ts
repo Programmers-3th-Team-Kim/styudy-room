@@ -79,7 +79,12 @@ export class AuthController {
       userId,
       currentPassword
     );
-    return { isPasswordCorrect };
+
+    if (!isPasswordCorrect) {
+      throw new UnauthorizedException('비밀번호가 일치하지 않습니다.');
+    }
+
+    return { message: '비밀번호가 확인되었습니다.' };
   }
 
   @UseGuards(AuthGuard('jwt'))
