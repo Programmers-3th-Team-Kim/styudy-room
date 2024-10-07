@@ -20,15 +20,16 @@ export class UsersService {
   }
 
   async findOneById(id: string): Promise<User | null> {
-    return this.userModel.findOne({ id }).exec();
-  }
-
-  async updateProfile(id: string, updateUserProfileDto: UpdateUserProfileDto) {
-    const user = await this.userModel.findOne({ id });
+    const user = await this.userModel.findOne({ id }).exec();
 
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
+    return user;
+  }
+
+  async updateProfile(id: string, updateUserProfileDto: UpdateUserProfileDto) {
+    const user = await this.findOneById(id);
 
     user.imageUrl = updateUserProfileDto.imageUrl;
     user.nickname = updateUserProfileDto.nickname;
@@ -38,10 +39,7 @@ export class UsersService {
   }
 
   async deleteAccount(id: string): Promise<void> {
-    const user = await this.userModel.findOneAndDelete({ id });
-
-    if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
-    }
+    const user = await this.findOneById(id);
+    await this.userModel.deleteOne({ id: user.id });
   }
 }

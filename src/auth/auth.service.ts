@@ -1,7 +1,6 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -59,10 +58,6 @@ export class AuthService {
   async validateUser(id: string, password: string): Promise<User> {
     const user = await this.usersService.findOneById(id);
 
-    if (!user) {
-      throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
-    }
-
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -102,9 +97,6 @@ export class AuthService {
       });
 
       const user = await this.usersService.findOneById(payload.id);
-      if (!user) {
-        throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
-      }
 
       const newAccessToken = this.getJwtAccessToken(user);
 
@@ -136,7 +128,6 @@ export class AuthService {
     currentPassword: string
   ): Promise<boolean> {
     const user = await this.usersService.findOneById(userId);
-    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
 
     const isPasswordCorrect = await bcrypt.compare(
       currentPassword,
@@ -147,7 +138,6 @@ export class AuthService {
 
   async changePassword(userId: string, newPassword: string): Promise<void> {
     const user = await this.usersService.findOneById(userId);
-    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedNewPassword;
