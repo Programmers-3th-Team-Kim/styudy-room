@@ -26,7 +26,7 @@ export class PlannersController {
   async create(
     @Req() req: any,
     @Body() createPlanDto: PlannerDto
-  ): Promise<Planner> {
+  ): Promise<any> {
     const userId = req.user.userId;
     return this.plannersService.createPlan(userId, createPlanDto);
   }

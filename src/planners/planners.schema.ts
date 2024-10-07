@@ -29,8 +29,8 @@ export class Planner {
   @Prop({ default: [] })
   repeatDays: string[];
 
-  @Prop({ default: 1 })
-  repeatWeeks: number;
+  @Prop({ required: false })
+  repeatEndDate: string;
 
   @Prop({ default: false })
   isComplete: boolean;
