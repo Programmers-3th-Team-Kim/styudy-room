@@ -8,6 +8,7 @@ export class ResponseRoomDto {
   maxNum: number;
   currentNum: number;
   isPublic: boolean;
+  isChat: boolean;
   imageUrl: string;
   createdAt: Date;
 }

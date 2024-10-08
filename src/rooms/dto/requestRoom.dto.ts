@@ -36,7 +36,7 @@ export class RequestRoomDto {
   @Type(() => Number)
   @IsNumber({}, { message: 'limit은 숫자여야 합니다.' })
   @Min(1, { message: 'limit은 최소 1이어야 합니다.' })
-  limit: number = 9;
+  limit: number;
 
   @IsOptional()
   @Type(() => Number)
