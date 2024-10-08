@@ -55,11 +55,10 @@ export class RoomsService {
     const rooms = await this.roomModel
       .find(query, {
         password: false,
-        isChat: false,
         roomManager: false,
         __v: false,
       })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip(offset)
       .limit(limit)
       .exec();
@@ -74,6 +73,7 @@ export class RoomsService {
         notice,
         maxNum,
         isPublic,
+        isChat,
         imageUrl,
         createdAt,
         currentMember,
@@ -86,6 +86,7 @@ export class RoomsService {
         notice,
         maxNum,
         isPublic,
+        isChat,
         imageUrl,
         createdAt,
         currentNum: currentMember.length,
