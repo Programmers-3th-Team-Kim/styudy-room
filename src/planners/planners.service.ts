@@ -246,4 +246,20 @@ export class PlannersService {
 
     return await planner.save();
   }
+
+  async find(
+    userId: string,
+    date: string,
+    projectionFields?: Record<string, boolean>
+  ): Promise<Planner[]> {
+    return await this.plannerModel
+      .find(
+        {
+          userId: new Types.ObjectId(userId),
+          date,
+        },
+        projectionFields
+      )
+      .lean();
+  }
 }

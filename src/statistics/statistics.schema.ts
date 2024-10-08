@@ -3,6 +3,9 @@ import { Types } from 'mongoose';
 
 @Schema({ collection: 'Statistics', strict: 'throw', minimize: false })
 export class Statistic {
+  toObject() {
+    throw new Error('Method not implemented.');
+  }
   @Prop({ required: true })
   date: string;
 

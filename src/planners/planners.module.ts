@@ -10,5 +10,6 @@ import { PlannersController } from './planners.controller';
   ],
   controllers: [PlannersController],
   providers: [PlannersService],
+  exports: [PlannersService],
 })
 export class PlannersModule {}

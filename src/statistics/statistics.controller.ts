@@ -1,40 +1,63 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Query } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
-import { CreateStatisticDto } from './dto/create-statistic.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { CalendarDto, ResponseCalendarDto } from './dto/calendar.dto';
+import { DailyDto, ResponseDailyDto } from './dto/daily.dto';
+import { WeeklyMonthlyDto } from './dto/weeklyMonthly.dto';
+import { AllGraph, AllLastAverage } from './dto/all.dto';
 
 @Controller('statistics')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
 
   @UseGuards(AuthGuard('jwt'))
-  @Get('my/calendar/:date?')
-  async getCalendar(@Param('date') date: string | undefined, @Req() req: any) {
-    this.statisticsService.getCalendar(date, req.user.userId);
+  @Get('my/calendar')
+  async getCalendar(
+    @Query() query: CalendarDto,
+    @Req() req: any
+  ): Promise<ResponseCalendarDto[]> {
+    return this.statisticsService.getCalendar(query, req.user.userId);
   }
 
-  @Get('my/daily/:id')
-  getDailyStatisticsInfo(@Body() createStatisticDto: CreateStatisticDto) {
-    return this.statisticsService.create(createStatisticDto);
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/daily')
+  async getDailyStatistic(
+    @Query() query: DailyDto,
+    @Req() req: any
+  ): Promise<ResponseDailyDto> {
+    return this.statisticsService.getDailyStatistic(query, req.user.userId);
   }
 
-  @Get('my/weekly/:date')
-  getWeeklyStatisticsInfo() {
-    return this.statisticsService.findAll();
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/weekly')
+  async getWeeklyStatistic(
+    @Query('offset') offset: string = '0',
+    @Req() req: any
+  ): Promise<WeeklyMonthlyDto> {
+    return this.statisticsService.getWeeklyStatistic(offset, req.user.userId);
   }
 
-  @Get('my/monthly/:date')
-  getMonthlyStatisticsInfo(@Param('id') id: string) {
-    return this.statisticsService.findOne(+id);
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/monthly')
+  getMonthlyStatistic(
+    @Query('offset') offset: string = '0',
+    @Req() req: any
+  ): Promise<WeeklyMonthlyDto> {
+    return this.statisticsService.getMonthlyStatistic(offset, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('all/average')
+  async getAllAverage(@Req() req: any): Promise<AllLastAverage> {
+    return this.statisticsService.getAllLastAverage(req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('all/graph')
+  async getAllGraph(
+    @Query('offset') offset: string = '0',
+    @Req() req: any
+  ): Promise<AllGraph> {
+    return this.statisticsService.getAllGraph(offset, req.user.userId);
   }
 }
