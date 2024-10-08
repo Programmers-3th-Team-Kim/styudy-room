@@ -82,6 +82,9 @@ export class StatisticsService {
       day = sDay;
     }
 
+    month = month.padStart(2, '0');
+    day = day.padStart(2, '0');
+
     const date = `${year}-${month}-${day}`;
 
     const statistic = await this.findDaily(userId, date, {
