@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './users.schema';
 import { CreateUserDto } from './dto/createUser.dto';
+import { UpdateUserProfileDto } from './dto/updateUserProfile.dto';
 
 @Injectable()
 export class UsersService {
@@ -13,7 +14,32 @@ export class UsersService {
     return createdUser.save();
   }
 
-  async findOne(id: string): Promise<User | null> {
-    return this.userModel.findOne({ id }).exec();
+  async checkDuplicate(field: string, value: string): Promise<boolean> {
+    const user = await this.userModel.findOne({ [field]: value }).exec();
+    return !!user;
+  }
+
+  async findOneById(id: string): Promise<User | null> {
+    const user = await this.userModel.findOne({ id }).exec();
+
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    return user;
+  }
+
+  async updateProfile(id: string, updateUserProfileDto: UpdateUserProfileDto) {
+    const user = await this.findOneById(id);
+
+    user.imageUrl = updateUserProfileDto.imageUrl;
+    user.nickname = updateUserProfileDto.nickname;
+    user.introduction = updateUserProfileDto.introduction;
+
+    return user.save();
+  }
+
+  async deleteAccount(id: string): Promise<void> {
+    const user = await this.findOneById(id);
+    await this.userModel.deleteOne({ id: user.id });
   }
 }
