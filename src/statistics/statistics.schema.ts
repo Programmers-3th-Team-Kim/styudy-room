@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-@Schema({ collection: 'Planners', strict: 'throw', minimize: false })
+@Schema({ collection: 'Statistics', strict: 'throw', minimize: false })
 export class Statistic {
   @Prop({ required: true })
   date: string;
@@ -16,7 +16,7 @@ export class Statistic {
   restTime: number;
 
   @Prop({ default: 0 })
-  mornning: number;
+  morning: number;
 
   @Prop({ default: 0 })
   afternoon: number;

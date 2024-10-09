@@ -2,8 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
 export class StartEndTime {
-  startTime: { date: string; time: string };
-  endTime: { date: string; time: string };
+  startTime: dateTime;
+  EndTime: dateTime;
+}
+
+export class dateTime {
+  date: string;
+  time: string;
 }
 
 @Schema({ collection: 'Planners', strict: 'throw', minimize: false })
