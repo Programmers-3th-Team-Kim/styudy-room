@@ -54,7 +54,7 @@ export class SocketService {
   }
 
   async joinRoom(client: Socket, roomId: string): Promise<Room> {
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const roomExists = await this.roomModel.findById(roomId);
     if (!roomExists) {
@@ -76,7 +76,7 @@ export class SocketService {
     client: Socket,
     room: Room
   ): Promise<RoomAndMyInfoDto> {
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
     const { roomManager, currentMember } =
       await this.getRoomManagerAndMembersToNickname(room);
 
@@ -105,7 +105,7 @@ export class SocketService {
   }
 
   async save(client: Socket, currentTime: number) {
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const temp = await this.findTemp(userId);
 
@@ -146,7 +146,7 @@ export class SocketService {
   }
 
   async leaveRoom(client: Socket, roomId: string): Promise<Room> {
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const roomExists = await this.roomModel.findById(roomId);
     if (!roomExists) {
@@ -171,7 +171,7 @@ export class SocketService {
 
   async start(client: Socket, payload: PayloadDto) {
     const { plannerId, currentTime, totalTime } = payload;
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
     const { roomId, nickname } = this.getSocketQuery(client);
 
     const temp = await this.findTemp(userId);
@@ -213,7 +213,7 @@ export class SocketService {
     const { currentTime, totalTime } = payload;
     const plannerId = payload.plannerId;
     const { roomId, nickname } = this.getSocketQuery(client);
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const temp = await this.findTemp(userId);
 
@@ -271,7 +271,7 @@ export class SocketService {
   async change(client: Socket, payload: PayloadDto) {
     const { plannerId, currentTime, totalTime } = payload;
     const { roomId, nickname } = this.getSocketQuery(client);
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const temp = await this.findTemp(userId);
 
@@ -321,7 +321,7 @@ export class SocketService {
 
   async update(client: Socket, payload: PayloadDto) {
     const { plannerId, currentTime } = payload;
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const temp = await this.findTemp(userId);
 
@@ -363,7 +363,7 @@ export class SocketService {
   }
 
   async getPlanner(client: Socket, date: string): Promise<SPlannerDto[]> {
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const yesterday = this.getFormattedDate(-1);
     const tomorrow = this.getFormattedDate(+1);
@@ -386,7 +386,7 @@ export class SocketService {
     client: Socket
   ): Promise<SPlannerDto> {
     const { date, todo } = payload;
-    const userId: string = client.data.user.sub;
+    const userId: string = client.data.user._id;
 
     const planner = await this.plannerModel.create({
       date,

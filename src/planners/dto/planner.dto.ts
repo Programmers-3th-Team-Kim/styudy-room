@@ -2,23 +2,23 @@ import { Types } from 'mongoose';
 import { StartEndTime } from '../planners.schema';
 
 export class PlannerDto {
-  subject: string | undefined;
+  subject?: string | undefined;
 
   todo: string;
 
   date: string;
 
-  startTime: string | undefined;
+  startTime?: string | undefined;
 
-  endTime: string | undefined;
+  endTime?: string | undefined;
 
   repeatDays: string[] | undefined;
 
-  repeatWeeks: number | undefined;
+  repeatEndDate?: string | undefined;
 
   parentObjectId?: Types.ObjectId | undefined;
 
-  isComplete: boolean;
+  isComplete?: boolean;
 
-  timelineList: StartEndTime[] | undefined;
+  timelineList?: StartEndTime[] | [];
 }

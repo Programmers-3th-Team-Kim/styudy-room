@@ -37,7 +37,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.disconnect();
       return;
     }
-    console.log(`Client connected: ${client.data.user.sub}`);
+    console.log(`Client connected: ${client.data.user._id}`);
 
     const { roomId, nickname, imageUrl } =
       this.socketService.getSocketQuery(client);
@@ -82,11 +82,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(error);
       client.emit('error', { error: error.message });
     }
-    console.log(`Client disconnected: ${client.data.user.sub}`);
+    console.log(`Client disconnected: ${client.data.user._id}`);
   }
 
   @SubscribeMessage('responseUserInfo')
   responseUserInfo(
+
     @MessageBody() payload: ResponseUserInfoDto,
     @ConnectedSocket() client: Socket
   ) {
@@ -107,12 +108,14 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { message } = payload;
     const { nickname, roomId, imageUrl } =
       this.socketService.getSocketQuery(client);
+
     const chat: ChatDto = {
       time: this.socketService.getFormattedTime(),
       message,
       nickname,
       imageUrl,
     };
+
     client.broadcast.to(roomId).emit('receiveChat', chat);
     client.emit('responseChat', { success: true });
   }
@@ -171,6 +174,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('getPlanner')
   async getPlanner(
+
     @MessageBody() payload: GetPlannerDto,
     @ConnectedSocket() client: Socket
   ) {

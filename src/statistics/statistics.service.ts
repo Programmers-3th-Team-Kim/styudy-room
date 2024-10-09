@@ -7,7 +7,6 @@ import { DailyDto, ResponseDailyDto } from './dto/daily.dto';
 import { PlannersService } from 'src/planners/planners.service';
 import { TimePercentage, WeeklyMonthlyDto } from './dto/weeklyMonthly.dto';
 import { AllGraph, AllLastAverage, DateTotalTime } from './dto/all.dto';
-import { DailyRankingDto } from '../rankings/dto/rankings.dto';
 
 @Injectable()
 export class StatisticsService {
@@ -63,9 +62,16 @@ export class StatisticsService {
     const completeStatistics: ResponseCalendarDto[] = [
       ...statistic,
       ...missingDates,
-    ].sort((a, b) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    });
+    ]
+      .sort((a, b) => {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      })
+      .map((item) => {
+        return {
+          date: item.date,
+          totalTime: Math.round(item.totalTime / 60),
+        };
+      });
 
     return completeStatistics;
   }
