@@ -7,6 +7,7 @@ import { DailyDto, ResponseDailyDto } from './dto/daily.dto';
 import { PlannersService } from 'src/planners/planners.service';
 import { TimePercentage, WeeklyMonthlyDto } from './dto/weeklyMonthly.dto';
 import { AllGraph, AllLastAverage, DateTotalTime } from './dto/all.dto';
+import { DailyRankingDto } from '../rankings/dto/rankings.dto';
 
 @Injectable()
 export class StatisticsService {
@@ -45,7 +46,7 @@ export class StatisticsService {
       year === thisYear && month === thisMonth
         ? Number(this.getYYMMDDtoString()[2])
         : new Date(Number(year), Number(month), 0).getDate();
-    console.log(maxDate);
+
     const allDates = Array.from({ length: maxDate }, (_, i) => i + 1);
 
     const existingDates = statistic.map((stat) =>
@@ -506,7 +507,11 @@ export class StatisticsService {
     startOfWeek.setDate(startOfWeek.getDate() - offset * 7);
 
     const endOfWeek = offset === 0 ? new Date() : new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    if (offset === 0) {
+      endOfWeek.setDate(endOfWeek.getDate() + 1);
+    } else {
+      endOfWeek.setDate(startOfWeek.getDate() + 7);
+    }
 
     return {
       startDate: startOfWeek.toLocaleDateString('en-CA'),

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User } from './users.schema';
 import { CreateUserDto } from './dto/createUser.dto';
 import { UpdateUserProfileDto } from './dto/updateUserProfile.dto';
@@ -41,5 +41,9 @@ export class UsersService {
   async deleteAccount(id: string): Promise<void> {
     const user = await this.findOneById(id);
     await this.userModel.deleteOne({ id: user.id });
+  }
+
+  async findById(userId: Types.ObjectId) {
+    return await this.userModel.findOne({ _id: userId });
   }
 }

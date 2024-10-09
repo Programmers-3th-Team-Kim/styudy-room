@@ -27,7 +27,7 @@ export class RoomsController {
     @Body() createRoomDto: CreateRoomDto,
     @Req() req: any
   ): Promise<Room> {
-    return this.roomsService.createRoom(createRoomDto, req.user.userId);
+    return this.roomsService.createRoom(createRoomDto, req.user._id);
   }
 
   @Get()

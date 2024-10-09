@@ -11,6 +11,7 @@ import { SocketModule } from './socket/socket.module';
 import { PlannersModule } from './planners/planners.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { UsersModule } from './users/users.module';
+import { RankingsModule } from './rankings/rankings.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     PlannersModule,
     StatisticsModule,
     UsersModule,
+    RankingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

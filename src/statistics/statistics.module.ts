@@ -14,5 +14,6 @@ import { PlannersModule } from 'src/planners/planners.module';
   ],
   controllers: [StatisticsController],
   providers: [StatisticsService],
+  exports: [StatisticsService],
 })
 export class StatisticsModule {}
