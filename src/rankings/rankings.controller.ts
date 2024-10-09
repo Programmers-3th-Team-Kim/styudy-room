@@ -7,8 +7,13 @@ export class RankingsController {
   constructor(private readonly rankingsService: RankingsService) {}
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('jwt')
+  async getRankingsJwt(@Req() req: any) {
+    return this.rankingsService.getRankingsJwt(req.user._id);
+  }
+
   @Get()
-  async getRankings(@Req() req: any) {
-    return this.rankingsService.getRankings(req.user._id);
+  async getRankings() {
+    return this.rankingsService.getRankings();
   }
 }
