@@ -45,7 +45,7 @@ export class StatisticsService {
       year === thisYear && month === thisMonth
         ? Number(this.getYYMMDDtoString()[2])
         : new Date(Number(year), Number(month), 0).getDate();
-    console.log(maxDate);
+
     const allDates = Array.from({ length: maxDate }, (_, i) => i + 1);
 
     const existingDates = statistic.map((stat) =>
@@ -62,9 +62,16 @@ export class StatisticsService {
     const completeStatistics: ResponseCalendarDto[] = [
       ...statistic,
       ...missingDates,
-    ].sort((a, b) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    });
+    ]
+      .sort((a, b) => {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      })
+      .map((item) => {
+        return {
+          date: item.date,
+          totalTime: item.totalTime / 60,
+        };
+      });
 
     return completeStatistics;
   }
