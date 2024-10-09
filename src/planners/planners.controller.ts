@@ -27,7 +27,7 @@ export class PlannersController {
     @Req() req: any,
     @Body() createPlanDto: PlannerDto
   ): Promise<any> {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.plannersService.createPlan(userId, createPlanDto);
   }
 
@@ -37,7 +37,7 @@ export class PlannersController {
     @Req() req: any,
     @Query('date') date: string
   ): Promise<Planner[]> {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     console.log(userId);
     return this.plannersService.showAll(userId, date);
   }
@@ -49,7 +49,7 @@ export class PlannersController {
     @Param('plannerId') plannerId: string,
     @Body() updatePlannerDto: PlannerDto
   ): Promise<any> {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.plannersService.updatePlan(userId, plannerId, updatePlannerDto);
   }
 
@@ -59,7 +59,7 @@ export class PlannersController {
     @Req() req: any,
     @Param('plannerId') plannerId: string
   ): Promise<Planner> {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.plannersService.deletePlan(userId, plannerId);
   }
 
@@ -69,7 +69,7 @@ export class PlannersController {
     @Req() req: any,
     @Param('plannerId') plannerId: string
   ): Promise<Planner> {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.plannersService.toggleIsComplete(userId, plannerId);
   }
 }

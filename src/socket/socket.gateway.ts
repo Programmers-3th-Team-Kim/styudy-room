@@ -87,7 +87,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('responseUserInfo')
   responseUserInfo(
-
     @MessageBody() payload: ResponseUserInfoDto,
     @ConnectedSocket() client: Socket
   ) {
@@ -174,7 +173,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('getPlanner')
   async getPlanner(
-
     @MessageBody() payload: GetPlannerDto,
     @ConnectedSocket() client: Socket
   ) {
