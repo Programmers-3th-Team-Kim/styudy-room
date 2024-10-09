@@ -69,7 +69,7 @@ export class StatisticsService {
       .map((item) => {
         return {
           date: item.date,
-          totalTime: item.totalTime / 60,
+          totalTime: Math.round(item.totalTime / 60),
         };
       });
 
